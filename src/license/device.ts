@@ -81,7 +81,7 @@ export async function activateDevice(conn: LicenseConnection, rawKey: string): P
   const device = await currentDevice();
   const client = licenseClientFor(conn);
   const res = await client.activate(licenseKey, device);
-  if (!res.ok) return { ok: false, message: licenseHint(res.reason, res.message) };
+  if (!res.ok) return { ok: false, message: licenseHint(res.reason, res.message, "activate") };
 
   const publicKey = await client.fetchPublicKey();
   const now = new Date().toISOString();
@@ -137,7 +137,7 @@ export async function heartbeatDevice(force = false): Promise<DeviceActionResult
     });
     return {
       ok: res.valid === true,
-      message: res.valid ? "授权有效" : licenseHint(res.reason, res.message),
+      message: res.valid ? "授权有效" : licenseHint(res.reason, res.message, "heartbeat"),
       verdict: await deviceVerdict(),
     };
   }
@@ -152,8 +152,8 @@ export async function heartbeatDevice(force = false): Promise<DeviceActionResult
   return {
     ok: false,
     message: offlineOnly
-      ? `${licenseHint(res.reason, res.message)}（暂时可以继续使用）`
-      : licenseHint(res.reason, res.message),
+      ? `${licenseHint(res.reason, res.message, "heartbeat")}（暂时可以继续使用）`
+      : licenseHint(res.reason, res.message, "heartbeat"),
     verdict: await deviceVerdict(),
   };
 }
@@ -169,11 +169,14 @@ export async function deactivateDevice(): Promise<DeviceActionResult> {
     return { ok: true, message: "已解绑本机，名额已释放" };
   }
   if (res.reason === "network" || res.reason === "timeout") {
-    return { ok: false, message: `${licenseHint(res.reason, res.message)}：解绑请求没发出去，本机仍是激活状态，稍后重试` };
+    return {
+      ok: false,
+      message: `${licenseHint(res.reason, res.message, "deactivate")}：解绑请求没发出去，本机仍是激活状态，稍后重试`,
+    };
   }
   // 服务端明确拒绝（例如授权已被吊销）——本地留着也没意义，清掉
   await repo.clearDeviceLicense();
-  return { ok: false, message: `${licenseHint(res.reason, res.message)}；本地激活记录已清除` };
+  return { ok: false, message: `${licenseHint(res.reason, res.message, "deactivate")}；本地激活记录已清除` };
 }
 
 /** 本地判定：只读授权文件，不联网（拿不到公钥时才会去抓一次） */
