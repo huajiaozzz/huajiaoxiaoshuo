@@ -7,8 +7,7 @@ import type { GateStatus } from "@/license/status";
 /**
  * 「需要授权」提示：卡住创作入口时显示，一键跳到设置里的「授权激活」页。
  *
- * 两条线现在是同一页里的两块（设备激活码 / 域名授权），所以这里只给一个入口 ——
- * 进页面后用户看到的状态卡会告诉他该走哪条线。
+ * 只有设备线（授权码）：这里只给一个入口，跳过去填码即可。
  */
 export function ActivationRequired({
   gate,
@@ -20,7 +19,7 @@ export function ActivationRequired({
   hint?: string;
 }) {
   const navigate = useNavigate();
-  const detail = hint ?? gate?.message ?? "填授权码激活本机，或按域名开通授权 —— 任一条可用即可继续。";
+  const detail = hint ?? gate?.message ?? "填一张授权码激活本机，即可继续创作。";
 
   return (
     <div className="rounded-xl border border-amber-500/40 bg-amber-500/[0.06] p-4">

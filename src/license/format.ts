@@ -13,19 +13,18 @@ export function formatExpiry(expiresAt: string | null | undefined, perpetual?: b
   return `${text}（已过期 ${-days} 天）`;
 }
 
-/** 一句话概括授权内容：套餐 / 到期 / 设备或域名额度 */
+/** 一句话概括授权内容：套餐 / 到期 / 设备额度 */
 export function describeEntitlements(ent: Entitlements | null | undefined): string {
   if (!ent) return "";
   const parts: string[] = [];
   if (ent.plan) parts.push(`套餐 ${ent.plan}`);
   parts.push(formatExpiry(ent.expiresAt ?? null, ent.perpetual));
-  if (typeof ent.maxDomains === "number") parts.push(`域名 ${ent.domainCount ?? 0}/${ent.maxDomains}`);
-  else if (typeof ent.maxDevices === "number") parts.push(`设备 ${ent.activeDevices ?? 0}/${ent.maxDevices}`);
+  if (typeof ent.maxDevices === "number") parts.push(`设备 ${ent.activeDevices ?? 0}/${ent.maxDevices}`);
   if (ent.features?.length) parts.push(`功能点 ${ent.features.join("、")}`);
   return parts.join(" · ");
 }
 
-/** 「还剩多少天 / 已进宽限期」：两条线共用的措辞，免得两处说法不一致 */
+/** 「还剩多少天 / 已进宽限期」：统一措辞，免得各处说法不一致 */
 export function graceText(daysLeft: number | undefined, offlineGraceDays: number | null | undefined): string {
   if (daysLeft === undefined) return "";
   if (daysLeft > 0) return `还剩 ${daysLeft} 天`;

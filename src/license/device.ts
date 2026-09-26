@@ -115,7 +115,7 @@ export async function heartbeatDevice(force = false): Promise<DeviceActionResult
   if (!record) return null;
   const hours = record.heartbeatIntervalHours ?? DEFAULT_HEARTBEAT_HOURS;
   if (!force && !dueForCheck(record.lastCheckAt, hours)) {
-    return { ok: true, message: "还没到核对时间（本地授权文件仍然有效）", verdict: await deviceVerdict() };
+    return { ok: true, message: "授权有效，暂时不用核对", verdict: await deviceVerdict() };
   }
 
   const client = licenseClientFor(record.connection, record.publicKey);
@@ -152,7 +152,7 @@ export async function heartbeatDevice(force = false): Promise<DeviceActionResult
   return {
     ok: false,
     message: offlineOnly
-      ? `${licenseHint(res.reason, res.message)}（本地授权文件仍在宽限期内，可以继续用）`
+      ? `${licenseHint(res.reason, res.message)}（暂时可以继续使用）`
       : licenseHint(res.reason, res.message),
     verdict: await deviceVerdict(),
   };
