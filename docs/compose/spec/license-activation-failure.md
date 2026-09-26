@@ -3,7 +3,7 @@ feature: license-activation-failure
 status: delivered
 updated: 2026-09-27
 branch: fix/license-activation-cors
-commits: 7214080..009018c
+commits: 7214080..aa11a70 # novelcraft；license-hub 另有 71835f3..4018d6a
 ---
 
 # 授权激活失败修复（跨域放行 + 分场景文案）
