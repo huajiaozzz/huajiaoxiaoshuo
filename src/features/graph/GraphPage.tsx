@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card } from "@heroui/react";
 import { Network, RefreshCw, Swords, UserRound, Users } from "lucide-react";
 import type { Relationship } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";
-import { EmptyHint, Loading, StatCard } from "@/components/common/ui";
+import { EmptyHint, Loading, SelectChip, StatCard } from "@/components/common/ui";
 import { ROUTES } from "@/app/routes";
 import { useAsync, useChapters, useCharacters, useRelationships } from "@/app/hooks";
 import { listCharacters } from "@/db/repo/cast";
@@ -238,13 +238,11 @@ export function GraphPage() {
               <label className={LABEL_CLASS}>筛选</label>
             <div className="flex flex-wrap gap-1.5">
               {(Object.keys(MODE_LABELS) as FilterMode[]).map((m) => (
-                <button key={m} type="button" className="transition active:scale-95" onClick={() => setMode(m)}>
-                  <Chip size="sm" color={mode === m ? "accent" : "default"}>
-                    {m === "hostile" && <Swords className="mr-0.5 inline size-3" />}
-                    {m === "ego" && <UserRound className="mr-0.5 inline size-3" />}
-                    {MODE_LABELS[m]}
-                  </Chip>
-                </button>
+                <SelectChip key={m} selected={mode === m} onPress={() => setMode(m)}>
+                  {m === "hostile" && <Swords className="mr-0.5 inline size-3" />}
+                  {m === "ego" && <UserRound className="mr-0.5 inline size-3" />}
+                  {MODE_LABELS[m]}
+                </SelectChip>
               ))}
             </div>
           </div>

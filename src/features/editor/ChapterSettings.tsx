@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Button, Chip, Input, Label, TextArea, TextField } from "@heroui/react";
+import { Button, Input, Label, TextArea, TextField } from "@heroui/react";
 import { X } from "lucide-react";
+import { SelectChip } from "@/components/common/ui";
 import type { Chapter, ChapterStatus, ID } from "@/core";
 import { CHAPTER_STATUS_LABEL } from "@/app/theme";
 import { useAppStore } from "@/app/store";
@@ -150,11 +151,13 @@ export function ChapterSettings({
             <Label className="mb-2 block text-xs">出场人物</Label>
             <div className="flex flex-wrap gap-1.5">
               {characters.map((c) => (
-                <button key={c.id} type="button" onClick={() => toggle(characterIds, setCharacterIds, c.id)}>
-                  <Chip size="sm" color={characterIds.includes(c.id) ? "accent" : "default"}>
-                    {c.name}
-                  </Chip>
-                </button>
+                <SelectChip
+                  key={c.id}
+                  selected={characterIds.includes(c.id)}
+                  onPress={() => toggle(characterIds, setCharacterIds, c.id)}
+                >
+                  {c.name}
+                </SelectChip>
               ))}
               {characters.length === 0 && <p className="text-xs opacity-50">还没有人物卡</p>}
             </div>
@@ -166,11 +169,13 @@ export function ChapterSettings({
               {world
                 .filter((w) => w.category === "geography" || w.category === "organization")
                 .map((w) => (
-                  <button key={w.id} type="button" onClick={() => toggle(locationIds, setLocationIds, w.id)}>
-                    <Chip size="sm" color={locationIds.includes(w.id) ? "accent" : "default"}>
-                      {w.title}
-                    </Chip>
-                  </button>
+                  <SelectChip
+                    key={w.id}
+                    selected={locationIds.includes(w.id)}
+                    onPress={() => toggle(locationIds, setLocationIds, w.id)}
+                  >
+                    {w.title}
+                  </SelectChip>
                 ))}
             </div>
           </div>

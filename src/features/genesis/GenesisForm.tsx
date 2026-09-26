@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button, Card, Chip, Input, Label, TextArea, TextField } from "@heroui/react";
-import { AlertTriangle, Check, Plus, Settings2, Sparkles, X } from "lucide-react";
+import { AlertTriangle, Plus, Settings2, Sparkles, X } from "lucide-react";
+import { SelectChip } from "@/components/common/ui";
 import type { GenesisConstraints, LengthClass, PovStyle } from "@/core";
 import { lengthProfile } from "@/core";
 import type { GenesisOptions } from "@/ai/genesis";
@@ -117,12 +118,9 @@ export function GenesisForm({
           {GENRES.map((genre) => {
             const picked = constraints.genres.includes(genre);
             return (
-              <button key={genre} type="button" onClick={() => toggleGenre(genre)} className="transition active:scale-95">
-                <Chip color={picked ? "accent" : "default"} size="sm">
-                  {picked && <Check className="mr-0.5 inline size-3" />}
-                  {genre}
-                </Chip>
-              </button>
+              <SelectChip key={genre} selected={picked} onPress={() => toggleGenre(genre)}>
+                {genre}
+              </SelectChip>
             );
           })}
         </div>

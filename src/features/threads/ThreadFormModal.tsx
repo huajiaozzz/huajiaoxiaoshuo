@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Chip, Modal } from "@heroui/react";
-import { Check, Save, Sparkles } from "lucide-react";
+import { Button, Modal } from "@heroui/react";
+import { Save, Sparkles } from "lucide-react";
+import { SelectChip } from "@/components/common/ui";
 import type { Chapter, Character, ID, PlotThread } from "@/core";
 import { upsertThread } from "@/db/repo/story";
 import { useAppStore } from "@/app/store";
@@ -187,12 +188,9 @@ export function ThreadFormModal({
                   <label className={LABEL_CLASS}>类型</label>
                   <div className="flex flex-wrap gap-1.5">
                     {THREAD_KINDS.map((kind) => (
-                      <button key={kind} type="button" className="transition active:scale-95" onClick={() => set("kind", kind)}>
-                        <Chip size="sm" color={form.kind === kind ? "accent" : "default"}>
-                          {form.kind === kind && <Check className="mr-0.5 inline size-3" />}
-                          {THREAD_KIND_LABELS[kind]}
-                        </Chip>
-                      </button>
+                      <SelectChip key={kind} selected={form.kind === kind} onPress={() => set("kind", kind)}>
+                        {THREAD_KIND_LABELS[kind]}
+                      </SelectChip>
                     ))}
                   </div>
                   <p className="mt-1.5 text-[11px] leading-relaxed opacity-45">{THREAD_KIND_HINTS[form.kind]}</p>
@@ -333,22 +331,19 @@ export function ThreadFormModal({
                         {characters.map((c) => {
                           const active = form.characterIds.includes(c.id);
                           return (
-                            <button
+                            <SelectChip
                               key={c.id}
-                              type="button"
-                              className="transition active:scale-95"
-                              onClick={() =>
+                              selected={active}
+                              onPress={() =>
                                 set(
                                   "characterIds",
                                   active ? form.characterIds.filter((id) => id !== c.id) : [...form.characterIds, c.id],
                                 )
                               }
                             >
-                              <Chip size="sm" color={active ? "accent" : "default"}>
-                                {c.avatarEmoji ? c.avatarEmoji + " " : ""}
-                                {c.name}
-                              </Chip>
-                            </button>
+                              {c.avatarEmoji ? c.avatarEmoji + " " : ""}
+                              {c.name}
+                            </SelectChip>
                           );
                         })}
                       </div>

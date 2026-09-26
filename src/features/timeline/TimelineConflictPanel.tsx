@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button, Card, Chip } from "@heroui/react";
 import { CheckCircle2, ChevronDown, ChevronRight, Crosshair, ShieldAlert } from "lucide-react";
+import { SelectChip } from "@/components/common/ui";
 import type { ID } from "@/core";
 import {
   CONFLICT_KIND_LABELS,
@@ -81,17 +82,18 @@ export function TimelineConflictPanel({
       {expanded && (
         <>
           <div className={"flex flex-wrap items-center gap-2 border-b px-4 py-2 " + DIVIDER_CLASS}>
-            <button type="button" className="transition active:scale-95" onClick={() => setSeverityFilter("all")}>
-              <Chip size="sm" color={severityFilter === "all" ? "accent" : "default"}>
-                全部 {conflicts.length}
-              </Chip>
-            </button>
+            <SelectChip selected={severityFilter === "all"} onPress={() => setSeverityFilter("all")}>
+              全部 {conflicts.length}
+            </SelectChip>
             {SEVERITY_ORDER.map((s) => (
-              <button key={s} type="button" className="transition active:scale-95" onClick={() => setSeverityFilter(s)}>
-                <Chip size="sm" color={severityFilter === s ? SEVERITY_COLORS[s] : "default"}>
-                  {CONFLICT_SEVERITY_LABELS[s]} {counts[s]}
-                </Chip>
-              </button>
+              <SelectChip
+                key={s}
+                selected={severityFilter === s}
+                color={SEVERITY_COLORS[s]}
+                onPress={() => setSeverityFilter(s)}
+              >
+                {CONFLICT_SEVERITY_LABELS[s]} {counts[s]}
+              </SelectChip>
             ))}
             <span className="ml-auto text-[11px] opacity-45">检测完全在本地完成，不消耗 AI 额度</span>
           </div>

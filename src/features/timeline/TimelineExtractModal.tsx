@@ -4,7 +4,7 @@ import { Check, RefreshCw, Sparkles, TriangleAlert, Wand2 } from "lucide-react";
 import type { Chapter, Character, TimelineEvent, WorldEntry } from "@/core";
 import { extractFromChapter } from "@/ai/extract";
 import { upsertTimelineEvent } from "@/db/repo/story";
-import { Loading } from "@/components/common/ui";
+import { Loading, SelectChip } from "@/components/common/ui";
 import { useAppStore } from "@/app/store";
 import { IMPORTANCE_LABELS, chapterLabel, sortedChapters } from "./timelineMeta";
 import { DIVIDER_CLASS, FIELD_CLASS, LABEL_CLASS, SELECT_CLASS } from "./styles";
@@ -288,18 +288,15 @@ export function TimelineExtractModal({
                                   />
                                   <div className="flex items-center gap-1">
                                     {[1, 2, 3, 4, 5].map((n) => (
-                                      <button
+                                      <SelectChip
                                         key={n}
-                                        type="button"
-                                        className="transition active:scale-95"
-                                        onClick={() =>
+                                        selected={draft.importance === n}
+                                        onPress={() =>
                                           setDrafts((prev) => prev.map((d) => (d.key === draft.key ? { ...d, importance: n } : d)))
                                         }
                                       >
-                                        <Chip size="sm" color={draft.importance === n ? "accent" : "default"}>
-                                          {n}
-                                        </Chip>
-                                      </button>
+                                        {n}
+                                      </SelectChip>
                                     ))}
                                     <span className="ml-1 text-[11px] opacity-45">{IMPORTANCE_LABELS[draft.importance]}</span>
                                   </div>

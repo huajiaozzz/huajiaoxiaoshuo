@@ -87,9 +87,8 @@ export function SnapshotPanel({
                     {formatDateTime(s.createdAt)} · {formatWords(s.wordCount)}
                   </p>
                 </div>
-                <Chip size="sm" color={s.kind === "manual" ? "accent" : "default"}>
-                  {KIND_LABEL[s.kind]}
-                </Chip>
+                {/* 手动/自动由文字区分：本主题里 Chip 的 accent/default 渲染完全相同 */}
+                <Chip size="sm">{KIND_LABEL[s.kind]}</Chip>
               </div>
               <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed opacity-60">{s.text.slice(0, 120)}</p>
               <div className="mt-2 flex items-center gap-1.5">

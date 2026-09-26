@@ -5,7 +5,7 @@ import type { PovStyle } from "@/core";
 import { useAppStore } from "@/app/store";
 import { GENRES } from "@/db/defaults";
 import { DEFAULT_SETTINGS } from "@/db/repo/settings";
-import { SectionTitle } from "@/components/common/ui";
+import { SectionTitle, SelectChip } from "@/components/common/ui";
 
 const POV_OPTIONS: { value: PovStyle; label: string }[] = [
   { value: "first", label: "第一人称" },
@@ -95,20 +95,17 @@ export function AuthorProfileSettings() {
           {GENRES.map((g) => {
             const on = settings.defaultGenres.includes(g);
             return (
-              <button
+              <SelectChip
                 key={g}
-                type="button"
-                onClick={() =>
+                selected={on}
+                onPress={() =>
                   updateSettings({
                     defaultGenres: on ? settings.defaultGenres.filter((x) => x !== g) : [...settings.defaultGenres, g].slice(0, 4),
                   })
                 }
-                className="transition active:scale-95"
               >
-                <Chip size="sm" color={on ? "accent" : "default"}>
-                  {g}
-                </Chip>
-              </button>
+                {g}
+              </SelectChip>
             );
           })}
         </div>

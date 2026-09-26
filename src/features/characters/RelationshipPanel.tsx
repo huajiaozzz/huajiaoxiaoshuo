@@ -190,9 +190,8 @@ export function RelationshipPanel({ projectId, characterId }: { projectId: ID; c
                   >
                     {other?.name ?? "（角色已删除）"}
                   </button>
-                  <Chip size="sm" color={outgoing ? "accent" : "default"}>
-                    {outgoing ? "他 → 对方" : "对方 → 他"}
-                  </Chip>
+                  {/* 方向靠文字表达即可：本主题里 Chip 的 accent/default 渲染完全相同 */}
+                  <Chip size="sm">{outgoing ? "他 → 对方" : "对方 → 他"}</Chip>
                   <button
                     type="button"
                     aria-label="删除关系"

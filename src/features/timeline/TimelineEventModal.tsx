@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Chip, Modal } from "@heroui/react";
-import { Check, Info, MapPin, Save } from "lucide-react";
+import { Button, Modal } from "@heroui/react";
+import { Info, MapPin, Save } from "lucide-react";
+import { SelectChip } from "@/components/common/ui";
 import type { Arc, Chapter, Character, ID, TimelineEvent, WorldEntry } from "@/core";
 import { upsertTimelineEvent } from "@/db/repo/story";
 import { useAppStore } from "@/app/store";
@@ -214,12 +215,9 @@ export function TimelineEventModal({
                   <label className={LABEL_CLASS}>重要性</label>
                   <div className="flex flex-wrap gap-1.5">
                     {[1, 2, 3, 4, 5].map((n) => (
-                      <button key={n} type="button" className="transition active:scale-95" onClick={() => set("importance", n)}>
-                        <Chip size="sm" color={form.importance === n ? "accent" : "default"}>
-                          {form.importance === n && <Check className="mr-0.5 inline size-3" />}
-                          {n} · {IMPORTANCE_LABELS[n]}
-                        </Chip>
-                      </button>
+                      <SelectChip key={n} selected={form.importance === n} onPress={() => set("importance", n)}>
+                        {n} · {IMPORTANCE_LABELS[n]}
+                      </SelectChip>
                     ))}
                   </div>
                 </div>
@@ -235,11 +233,9 @@ export function TimelineEventModal({
                           {chapterOptions.map((c) => {
                             const active = form.chapterIds.includes(c.id);
                             return (
-                              <button key={c.id} type="button" className="transition active:scale-95" onClick={() => toggle("chapterIds", c.id)}>
-                                <Chip size="sm" color={active ? "accent" : "default"}>
-                                  {chapterLabel(chapters, c.id)}
-                                </Chip>
-                              </button>
+                              <SelectChip key={c.id} selected={active} onPress={() => toggle("chapterIds", c.id)}>
+                                {chapterLabel(chapters, c.id)}
+                              </SelectChip>
                             );
                           })}
                         </div>
@@ -267,12 +263,10 @@ export function TimelineEventModal({
                           {characters.map((c) => {
                             const active = form.participantIds.includes(c.id);
                             return (
-                              <button key={c.id} type="button" className="transition active:scale-95" onClick={() => toggle("participantIds", c.id)}>
-                                <Chip size="sm" color={active ? "accent" : "default"}>
-                                  {c.avatarEmoji ? c.avatarEmoji + " " : ""}
-                                  {c.name}
-                                </Chip>
-                              </button>
+                              <SelectChip key={c.id} selected={active} onPress={() => toggle("participantIds", c.id)}>
+                                {c.avatarEmoji ? c.avatarEmoji + " " : ""}
+                                {c.name}
+                              </SelectChip>
                             );
                           })}
                         </div>
