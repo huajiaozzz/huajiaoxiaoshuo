@@ -1,14 +1,22 @@
 ---
 feature: license-activation-failure
-status: in-progress
+status: delivered
 updated: 2026-09-27
 branch: fix/license-activation-cors
-commits: # leave empty while in progress; fill at delivery
+commits: 7214080..009018c
 ---
 
 # 授权激活失败修复（跨域放行 + 分场景文案）
 
 ## Report
+
+## Report
+
+**What was built** — 授权激活失败的根因拆成两侧修完：LicenseHub 支持 `CORS_ORIGINS` 多来源白名单（`corsOrigins` 合并 `APP_ORIGIN`，`enableCors` 使用该列表），部署文档写明 novelcraft 等网页应用必须写入允许来源；novelcraft 的 `licenseHint` 按 activate / heartbeat / deactivate 分场景出文案，激活失败不再假装「已按离线宽限期继续放行」，并给出检查网络 / 联系作者的下一步。心跳离线仍可拼「暂时可以继续使用」，解绑网络失败明确「请求没发出去、本机仍激活」。
+
+**Verification** — LicenseHub `pnpm --filter @license-hub/api test` 34 PASS（含 corsOrigins 三例）+ typecheck PASS；本地起 API 后预检 `Origin: http://127.0.0.1:5178` 返回 `access-control-allow-origin`，陌生 Origin 不返回；浏览器从 5178 发起 `POST /api/v1/activate` 能到达服务端（假密钥回 401 API_KEY_INVALID，不再 CORS Failed to fetch）。novelcraft `npm run typecheck` PASS、touched-file oxlint 0 告警、`npm run verify` 55 PASS（含授权错误文案 6 项）。独立评审：全部验收 MET，无 critical。
+
+**Journey log** — 1) curl 看服务“活着”会骗人：缺 ACAO 时命令行全通、浏览器全挂。2) 错误文案里的「宽限期放行」只对已激活心跳成立，激活失败是谎言。3) 生产 `CORS_ORIGINS` 必须含 novelcraft 实际访问来源；代码合入后还要在 `shouquan.reshui.xin` 的 `.env` 配置并重启 API。4) 评审指出解绑拼接 `。：` 与缺 deactivate 断言，已一并补上。
 
 ## [S1] Problem
 
@@ -61,8 +69,8 @@ commits: # leave empty while in progress; fill at delivery
 
 ## Tasks
 
-- [ ] T1: LicenseHub 多 Origin CORS（config + enableCors + .env.example）— acceptance: `CORS_ORIGINS=a,b` 时 `corsOrigins` 含 APP_ORIGIN 与 a、b；单测通过 (covers: S2)
-- [ ] T2: LicenseHub 部署文档写清 `CORS_ORIGINS` — acceptance: DEPLOYMENT.md 含该变量与 novelcraft 来源示例 (covers: S2)
-- [ ] T3: novelcraft 分场景 `licenseHint` — acceptance: activate 的 network 文案不含「宽限期」；heartbeat 仍可拼宽限后缀；类型检查通过 (covers: S2)
-- [ ] T4: novelcraft 接线 activate/heartbeat/deactivate 调用 scene — acceptance: 激活失败不再显示「已按离线宽限期继续放行」 (covers: S2; depends: T3)
-- [ ] T5: 回归与验证 — acceptance: LicenseHub configuration 测试 + novelcraft 文案断言 + 浏览器实测 CORS 头（本地 hub） (covers: S1, S2; depends: T1, T4)
+- [x] T1: LicenseHub 多 Origin CORS（config + enableCors + .env.example）— acceptance: `CORS_ORIGINS=a,b` 时 `corsOrigins` 含 APP_ORIGIN 与 a、b；单测通过 (covers: S2)
+- [x] T2: LicenseHub 部署文档写清 `CORS_ORIGINS` — acceptance: DEPLOYMENT.md 含该变量与 novelcraft 来源示例 (covers: S2)
+- [x] T3: novelcraft 分场景 `licenseHint` — acceptance: activate 的 network 文案不含「宽限期」；heartbeat 仍可拼宽限后缀；类型检查通过 (covers: S2)
+- [x] T4: novelcraft 接线 activate/heartbeat/deactivate 调用 scene — acceptance: 激活失败不再显示「已按离线宽限期继续放行」 (covers: S2; depends: T3)
+- [x] T5: 回归与验证 — acceptance: LicenseHub configuration 测试 + novelcraft 文案断言 + 浏览器实测 CORS 头（本地 hub） (covers: S1, S2; depends: T1, T4)

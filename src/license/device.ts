@@ -171,7 +171,7 @@ export async function deactivateDevice(): Promise<DeviceActionResult> {
   if (res.reason === "network" || res.reason === "timeout") {
     return {
       ok: false,
-      message: `${licenseHint(res.reason, res.message, "deactivate")}：解绑请求没发出去，本机仍是激活状态，稍后重试`,
+      message: `${licenseHint(res.reason, res.message, "deactivate")}解绑请求没发出去，本机仍是激活状态，稍后重试`,
     };
   }
   // 服务端明确拒绝（例如授权已被吊销）——本地留着也没意义，清掉
