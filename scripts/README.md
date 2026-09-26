@@ -28,6 +28,8 @@
 > 授权卡点开关：`scripts/lib/browser.mjs` 默认给测试上下文打开**只在 dev 构建生效**的开发绕行（`huajiao:license:devBypass`），所以其它脚本不用先激活就能建项目；**要测卡点本身的脚本必须传 `{ licensing: true }`**（`verify-license.mjs` 已这么做），否则断言会静默失效。
 > 授权页上没有接入信息输入框（用户只填授权码），脚本要指向其它 LicenseHub 实例时用 `{ licensing: true }` + `addInitScript` 写 `localStorage["huajiao:license:devConn"]`（同样只在 dev 构建生效）。
 
+| `run-all-verify.mjs` | 批量跑所有 `verify-*.mjs` 并汇总：绿（0 失败）/ 跳过（缺外部依赖，如 DEEPSEEK_KEY、`npm run proxy`、本地 Ollama）/ 红 | `node scripts/run-all-verify.mjs` |
+
 ## 真模型验证
 
 需要一次性 Key，脚本内不保存任何凭据：

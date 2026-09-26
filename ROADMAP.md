@@ -99,10 +99,12 @@ node scripts/shot.mjs <url> <png>  # 任意页面截图 + 控制台错误收集
 | `verify-select-chip` 可选芯片选中态（源码约定 + 真实渲染差异） | 12 / 12 |
 | `verify-license` 授权（设备授权码：卡点 / 激活 / 篡改 / 心跳 / 解绑） | 23 / 23 |
 | `ai-e2e` AI 全链路 | 零控制台错误 |
+| `run-all-verify` 批量跑（39 个） | 37 绿 / 2 跳过（`verify-conflict`、`verify-proxy` 需 `DEEPSEEK_KEY`） |
 
 全部 13 个功能页在有真实数据的情况下零控制台错误。
 
 > 授权相关的回归需要 LicenseHub 在跑 + `/tmp/lh-fixtures.json`（凭据见 `scripts/README.md`）；其余脚本离线可复跑，`scripts/lib/browser.mjs` 会自动打开仅在 dev 构建生效的开发绕行，脚本不必先激活。
+> 少数脚本要外部服务：`verify-newproject-ai` 先起假模型（`node scripts/mock-llm.mjs 8765`）、`verify-embedding-picker` 先起假 Ollama（`node scripts/mock-ollama.mjs 11499`）、`verify-conflict` / `verify-proxy` 要 `DEEPSEEK_KEY`（后者还要 `npm run proxy`）。用 `node scripts/run-all-verify.mjs` 一次跑全并自动识别「跳过」。
 
 ## 三、待办
 
