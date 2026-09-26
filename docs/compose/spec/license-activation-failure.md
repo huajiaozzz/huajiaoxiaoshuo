@@ -1,6 +1,6 @@
 ---
 feature: license-activation-failure
-status: designed
+status: in-progress
 updated: 2026-09-27
 branch: fix/license-activation-cors
 commits: # leave empty while in progress; fill at delivery
