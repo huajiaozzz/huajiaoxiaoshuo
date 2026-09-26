@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Card, Chip, Spinner } from "@heroui/react";
+import { Check } from "lucide-react";
 import type { IssueSeverity } from "@/core";
 
 /** 共享小组件：所有页面统一使用，避免各处重复造轮子。 */
@@ -170,5 +171,49 @@ export function Field({ label, children }: { label: string; children: ReactNode 
       <span className="opacity-50">{label}</span>
       <span className="whitespace-pre-wrap leading-relaxed">{children}</span>
     </div>
+  );
+}
+
+/**
+ * 可选芯片：选中态**一定看得见**。
+ *
+ * 为什么必须用它、不能自己写 `color={选中 ? "accent" : "default"}`：
+ * HeroUI v3 的 Chip 底色恒为 --default，`.chip--accent` 只改文字色；
+ * 而本主题的品牌色已改成中性灰（与默认文字色同值），于是那种写法渲染出来
+ * 完全一样 —— 全站 16 处选择控件都变成「点了没反应」。详见 globals.css 第 3 节。
+ *
+ * 选中时的外观（底色 + 内描边 + 加粗 + 勾）由 `.chip--selected` 负责，
+ * 颜色跟随 currentColor，所以传语义色（warning / danger）也成立。
+ */
+export function SelectChip({
+  selected,
+  onPress,
+  children,
+  color = "accent",
+  className,
+  label,
+}: {
+  selected: boolean;
+  onPress: () => void;
+  children: ReactNode;
+  /** 语义色：默认中性；严重度之类的筛选可传 warning / danger / success */
+  color?: "accent" | "success" | "warning" | "danger";
+  className?: string;
+  /** 无障碍名（芯片文字不足以说明用途时给） */
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      aria-label={label}
+      onClick={onPress}
+      className={"transition active:scale-95 " + (className ?? "")}
+    >
+      <Chip size="sm" color={selected ? color : "default"} className={selected ? "chip--selected" : undefined}>
+        {selected && <Check className="mr-0.5 inline size-3" />}
+        {children}
+      </Chip>
+    </button>
   );
 }

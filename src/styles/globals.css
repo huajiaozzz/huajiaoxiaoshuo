@@ -54,6 +54,36 @@
   opacity: 1;
 }
 
+/**
+ * 3) 可选芯片（SelectChip）的选中态必须看得出来。
+ *
+ * ## 根因：HeroUI v3 的 Chip 把「颜色」与「变体」拆成了两个维度
+ *
+ *   .chip            底色恒为 --default，文字色取 --chip-fg
+ *   .chip--accent    只改**文字色**（--accent-soft-foreground），不碰底色
+ *   .chip--secondary 项目里用的默认变体，官方注释写着「什么都不做」
+ *   .chip--primary   只有实心变体才换底色（--chip-bg: var(--accent)）
+ *
+ * 所以 `color={选中 ? "accent" : "default"}` 的写法**底色完全一样**，全靠文字色变化；
+ * 而本主题把品牌色改成了中性（--accent-soft-foreground: var(--foreground)，
+ * 与 --default-foreground 同值）→ 选中与未选中的芯片渲染结果一模一样。
+ * 全站 16 处选择控件因此都像「点了没反应」，作者的反馈就是「怎么选不了」。
+ *
+ * ## 做法：只修显式声明了选中的芯片
+ *
+ * 不给 .chip--accent 加全局样式 —— 那会连带影响 40 多处状态徽章（警告 / 成功 / 危险），
+ * 它们本来就靠文字色区分，不需要描边和底色。统一走 components/common/ui.tsx 的
+ * SelectChip：选中时带上 .chip--selected，由下面这条规则负责外观。
+ *
+ * 颜色一律取 currentColor（该芯片自己的文字色）：accent 芯片是中性灰、danger 是红、
+ * warning 是琥珀；深色主题里 currentColor 变浅，底色与描边自动跟着反转，不需要第二套规则。
+ */
+.chip.chip--selected {
+  --chip-bg: color-mix(in oklab, currentColor 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, currentColor 45%, transparent);
+  font-weight: 600;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {

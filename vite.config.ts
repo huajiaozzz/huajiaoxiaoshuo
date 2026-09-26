@@ -9,6 +9,7 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   server: {
+    host: '127.0.0.1',
     port: 5178,
     strictPort: true,
     // linked worktree 落在仓库子目录里，不忽略的话 worktree 内改动会触发主仓整页刷新

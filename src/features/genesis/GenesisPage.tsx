@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Button, Card, Chip } from "@heroui/react";
 import { ArrowRight, Check, ClipboardList, LayoutList } from "lucide-react";
-import type { GenesisConstraints, GenesisRun, LengthClass } from "@/core";
+import type { GenesisConstraints, GenesisDraft, GenesisRun, LengthClass } from "@/core";
 import { lengthProfile } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";
 import { SectionTitle } from "@/components/common/ui";
@@ -33,6 +33,7 @@ import {
 export function GenesisPage() {
   const { projectId = "" } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const project = useAppStore((s) => s.project);
   const openSettings = useOpenSettings();
   const notify = useAppStore((s) => s.notify);
@@ -101,18 +102,26 @@ export function GenesisPage() {
   useEffect(() => {
     if (!project || seededRef.current === project.id) return;
     seededRef.current = project.id;
-    setSeed(project.logline ?? "");
+    /*
+     * 新建作品弹窗带过来的草案（模板 / AI 选题的种子）优先，
+     * 没有才退回项目自身的 logline。作者刚在弹窗里写的那句话，
+     * 不应该到了这一页又要重打一遍。
+     */
+    const draft = (location.state ?? null) as GenesisDraft | null;
+    const draftSeed = draft?.seed?.trim();
+    setSeed(draftSeed ? draftSeed : (project.logline ?? ""));
+    const lengthClass = draft?.lengthClass ?? project.lengthClass;
     setConstraints({
-      genres: project.genres.slice(0, 3),
-      lengthClass: project.lengthClass,
-      toneKeywords: project.themes.slice(0, 4),
-      pov: project.pov,
+      genres: draft?.genres?.length ? draft.genres.slice(0, 3) : project.genres.slice(0, 3),
+      lengthClass,
+      toneKeywords: draft?.toneKeywords?.length ? draft.toneKeywords.slice(0, 4) : project.themes.slice(0, 4),
+      pov: draft?.pov ?? project.pov,
       references: [],
       avoid: project.forbidden.slice(0, 4),
     });
     // 预填时也要把每卷章节数对齐到该项目的篇幅
-    setChaptersPerVolume(lengthProfile(project.lengthClass).chaptersPerVolume);
-  }, [project]);
+    setChaptersPerVolume(lengthProfile(lengthClass).chaptersPerVolume);
+  }, [project, location.state]);
 
   /** 换篇幅：同时调整每卷章节数（除非作者已经手动改过） */
   const changeLengthClass = (next: LengthClass) => {

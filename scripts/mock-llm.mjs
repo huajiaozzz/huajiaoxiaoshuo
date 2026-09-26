@@ -7,6 +7,7 @@
  * 所有响应都带 CORS 头，浏览器可直连。
  */
 import { createServer } from 'node:http';
+import { MOCK_TOPICS } from './fixtures/mock-topics.mjs';
 
 const PORT = Number(process.argv[2] ?? 8765);
 
@@ -111,6 +112,10 @@ function pickReply(body) {
           { title: '第三章 审计员', summary: '温晚找上门，要求他解释一笔异常账目', tension: 3, hook: '温晚拿出的是他十六岁的签名' },
         ],
       });
+    }
+    // 新建作品页的「AI 生成选题」（见 src/ai/topic-gen.ts）
+    if (/topics/.test(text) && /toneKeywords/.test(text)) {
+      return JSON.stringify({ topics: MOCK_TOPICS });
     }
     // 人物页的「AI 生成人物」（cast-gen 任务）
     if (/verbalTics/.test(text) && /characters/.test(text) && !/entities/.test(text)) {

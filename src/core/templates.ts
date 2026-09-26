@@ -43,6 +43,11 @@ export interface NovelTemplate {
   name: string;
   /** 一句话故事（可直接当 logline） */
   logline: string;
+  /**
+   * 故事简介。内置模板一般不填；「AI 选题」会带上，
+   * 选中后直接预填到新建作品表单的故事简介里（会进入 AI 上下文）。
+   */
+  synopsis?: string;
   category: Exclude<TemplateCategory, 'all'>;
   /** 展示标签：受众、结构、套路等 */
   tags: string[];

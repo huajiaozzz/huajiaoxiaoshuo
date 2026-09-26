@@ -21,6 +21,8 @@
 | `verify-rebrand.mjs` | 回归：图标无「墨」字且为黑底、死设置项已清、默认心流真的生效、库名与存储键已统一为 huajiao | `node scripts/verify-rebrand.mjs` |
 | `verify-overview.mjs` | 回归：项目总览页（进度/今日/近 7 天/指标卡/行动项/节奏图/结构分布），且不再出现「建设中」 | `node scripts/verify-overview.mjs` |
 | `verify-review.mjs` | 回归：审稿协作 —— 批注锚定与正文标记渲染、修订建议接受/拒绝与快照、**改稿后锚点自动重定位**、审稿台、更新日志 | `node scripts/verify-review.mjs` |
+| `verify-newproject-ai.mjs` | 回归：新建作品「AI 选题」—— 生成条数与内容来自模型、选中后书名/一句话故事/简介全部带出、**种子直通一句话成书**、模型连不上时必须留下可见错误 | 先起 `npm run mock-llm`，再 `node scripts/verify-newproject-ai.mjs` |
+| `verify-select-chip.mjs` | 回归：**所有可选芯片的选中态必须看得见** —— 源码不许再出现「靠 Chip 颜色表达选中」的写法；选中的芯片必须带 `.chip--selected` 与勾，且底色/内描边/字重与未选中项有可见差异（设置·创作者档案、新建作品分类都实测）；控制台干净 | `node scripts/verify-select-chip.mjs` |
 
 ## 真模型验证
 

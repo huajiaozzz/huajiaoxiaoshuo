@@ -132,6 +132,21 @@ export interface GenesisConstraints {
   avoid: string[];
 }
 
+/**
+ * 新建作品弹窗 → 一句话成书 的预填草案。
+ *
+ * 为什么走路由 state 而不是落库：它是「这一次创建」的临时交接物，
+ * 项目已经有 logline / genres / pov / lengthClass，草案只是把模板里
+ * 更完整的那份（尤其是 seed）带给成书页，省掉作者重复输入一遍。
+ */
+export interface GenesisDraft {
+  seed?: string;
+  genres?: string[];
+  lengthClass?: LengthClass;
+  pov?: PovStyle;
+  toneKeywords?: string[];
+}
+
 export type GenesisStageKind =
   | 'premise'      // 核心前提 / 高概念
   | 'characters'   // 主要人物

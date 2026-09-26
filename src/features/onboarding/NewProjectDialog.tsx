@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Chip, Input, Label, Modal, TextArea, TextField } from "@heroui/react";
-import { ArrowRight, Check, Wand2 } from "lucide-react";
+import { Button, Input, Label, Modal, TextArea, TextField } from "@heroui/react";
+import { ArrowRight, Wand2 } from "lucide-react";
+import { SelectChip } from "@/components/common/ui";
 import { ROUTES } from "@/app/routes";
 import { GENRES } from "@/db/defaults";
 import { createProject } from "@/db/repo/projects";
 import { useAppStore } from "@/app/store";
-import type { LengthClass, NovelTemplate, PovStyle } from "@/core";
+import type { GenesisDraft, LengthClass, NovelTemplate, PovStyle } from "@/core";
 import { lengthProfile } from "@/core";
 import { TemplatePicker } from "./TemplatePicker";
 
@@ -68,6 +69,8 @@ export function NewProjectDialog() {
     setTemplate(t);
     if (!t) return;
     setLogline(t.seed || t.logline);
+    // AI 选题会带故事简介；内置模板没有这一项，那就保留作者已经写的，不要清空
+    if (t.synopsis) setSynopsis(t.synopsis);
     setGenres(t.genres.slice(0, 3));
     setPov(t.pov);
     setLengthClass(t.lengthClass);
@@ -92,7 +95,19 @@ export function NewProjectDialog() {
       });
       await setProject(project);
       setOpen(false);
-      navigate(goGenesis ? ROUTES.genesis(project.id) : ROUTES.overview(project.id));
+      if (!goGenesis) {
+        navigate(ROUTES.overview(project.id));
+        return;
+      }
+      // 把模板里更完整的那份（尤其是 seed）交给成书页预填，省掉作者重复输入一遍
+      const draft: GenesisDraft = {
+        seed: (template?.seed || logline).trim() || undefined,
+        genres,
+        pov,
+        lengthClass,
+        toneKeywords: template?.toneKeywords ?? [],
+      };
+      navigate(ROUTES.genesis(project.id), { state: draft });
     } finally {
       setBusy(false);
     }
@@ -106,13 +121,19 @@ export function NewProjectDialog() {
             <Modal.Header>
               <Modal.Heading>新建作品</Modal.Heading>
               <p className="mt-1 text-xs leading-relaxed opacity-55">
-                选个模板当起点，或只填最少的信息交给「一句话成书」。
+                用内置模板、或者让 AI 出几个选题当起点；只填书名也能建，剩下的交给「一句话成书」。
               </p>
             </Modal.Header>
 
             <Modal.Body>
               <div className="space-y-5">
-                <TemplatePicker selectedId={template?.id} onChange={applyTemplate} />
+                <TemplatePicker
+                  selectedId={template?.id}
+                  onChange={applyTemplate}
+                  genres={genres}
+                  lengthClass={lengthClass}
+                  pov={pov}
+                />
 
                 <div className="h-px bg-black/5 dark:bg-white/10" />
 
@@ -138,12 +159,9 @@ export function NewProjectDialog() {
                   <Label className="mb-2 block">体裁（最多选 3 个）</Label>
                   <div className="flex flex-wrap gap-1.5">
                     {GENRES.map((g) => (
-                      <button key={g} type="button" onClick={() => toggleGenre(g)} className="transition active:scale-95">
-                        <Chip color={genres.includes(g) ? "accent" : "default"} size="sm">
-                          {genres.includes(g) && <Check className="mr-0.5 inline size-3" />}
-                          {g}
-                        </Chip>
-                      </button>
+                      <SelectChip key={g} selected={genres.includes(g)} onPress={() => toggleGenre(g)}>
+                        {g}
+                      </SelectChip>
                     ))}
                   </div>
                 </div>
