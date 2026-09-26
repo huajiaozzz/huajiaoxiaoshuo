@@ -78,3 +78,15 @@ export const V4_STORES = {
   ...V3_STORES,
   memoryUsage: 'id, projectId, generationId, factId, createdAt',
 } as const;
+
+/**
+ * Dexie v5 的表结构快照（新增 blueprints）。
+ *
+ * v5 当时是直接复用 DB_STORES 声明的，没留独立快照；加 v6（licenses）时补上这一份，
+ * 这样版本链 v1 → v2 → v3 → v4 → v5 → v6 每一环都有基准点，
+ * Dexie 给老库升级时能算准「新增了哪些表」，不会把 licenses 误判成删表重建。
+ */
+export const V5_STORES = {
+  ...V4_STORES,
+  blueprints: 'id, projectId, sourceTitle, createdAt',
+} as const;

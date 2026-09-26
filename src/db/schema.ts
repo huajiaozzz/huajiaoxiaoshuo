@@ -7,6 +7,8 @@ import type {
   WorldEntry, OutlineNode, GenesisRun, ModelPricing, ChapterComment, ReviewSuggestion, MemoryFact,
   MemoryUsage, BlueprintRecord,
 } from '@/core';
+// 授权状态（设备线 / 域名线各一条记录）。类型只在这里被「类型引用」，运行时来自 src/license。
+import type { LicenseRecord } from '@/license/types';
 
 /** 每个 projectId 开头的表都带上项目隔离，便于级联删除 */
 export interface HuaJiaoDB {
@@ -50,12 +52,14 @@ export interface HuaJiaoDB {
   feedback: EntityTable<AiFeedback, 'id'>;
   appState: EntityTable<AppState, 'id'>;
   genesis: EntityTable<GenesisRun, 'id'>;
+  /** 授权状态（v6 新增）：id = "device" | "domain" */
+  licenses: EntityTable<LicenseRecord, 'id'>;
 }
 
 /** Dexie 版本定义。加表/加索引时 append 新版本，不要改旧版本。 */
 export const DB_NAME = 'huajiao-writer';
 
-export const DB_VERSION = 5;
+export const DB_VERSION = 6;
 
 export const DB_STORES = {
   projects: 'id, title, status, updatedAt, createdAt',
@@ -98,6 +102,8 @@ export const DB_STORES = {
   feedback: 'id, projectId, taskKind, createdAt',
   appState: 'id',
   genesis: 'id, projectId, status, createdAt',
+  // 授权状态：两条线各一条记录（device / domain），没有项目维度，所以不参与级联删除
+  licenses: 'id, kind, updatedAt',
 } as const;
 
 export type StoreName = keyof typeof DB_STORES;

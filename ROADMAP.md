@@ -97,9 +97,12 @@ node scripts/shot.mjs <url> <png>  # 任意页面截图 + 控制台错误收集
 | `verify-proxy` 本地代理 | 13 / 13 |
 | `verify-newproject-ai` AI 选题（生成 / 预填 / 种子交接 / 失败可见） | 21 / 21 |
 | `verify-select-chip` 可选芯片选中态（源码约定 + 真实渲染差异） | 12 / 12 |
+| `verify-license` 授权对接（一页两块 / 卡点 / 设备线 / 域名线 / 篡改 / 解绑） | 28 / 28 |
 | `ai-e2e` AI 全链路 | 零控制台错误 |
 
 全部 13 个功能页在有真实数据的情况下零控制台错误。
+
+> 授权相关的回归需要 LicenseHub 在跑 + `/tmp/lh-fixtures.json`（凭据见 `scripts/README.md`）；其余脚本离线可复跑，`scripts/lib/browser.mjs` 会自动打开仅在 dev 构建生效的开发绕行，脚本不必先激活。
 
 ## 三、待办
 

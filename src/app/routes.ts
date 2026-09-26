@@ -31,6 +31,7 @@ export type SettingsSection =
   | "routing"
   | "editor"
   | "privacy"
+  | "license"
   | "data"
   | "about";
 
@@ -40,6 +41,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   "routing",
   "editor",
   "privacy",
+  "license",
   "data",
   "about",
 ];

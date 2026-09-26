@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Chip, Input, Label, Switch, TextArea, TextField } from "@heroui/react";
-import { ArrowLeft, Brain, Check, Eraser, Eye, EyeOff, Gauge, KeyRound, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, Zap } from "lucide-react";
+import { ArrowLeft, Brain, Check, Eraser, Eye, EyeOff, Fingerprint, Gauge, Globe, KeyRound, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, Zap } from "lucide-react";
 import type { AiTaskKind, ProviderConfig, ProviderKind, TaskRouting } from "@/core";
 import { useAppStore } from "@/app/store";
 import { ROUTES } from "@/app/routes";
@@ -22,6 +22,8 @@ import { ChangelogPanel } from "./ChangelogPanel";
 import { MemoryPanel } from "./MemoryPanel";
 import { ProxyCard } from "./ProxyCard";
 import { PricingPanel } from "./PricingPanel";
+// 两条授权线各自一个组件文件，界面与状态都不共用
+import { ActivationPanel } from "@/features/license/ActivationPanel";
 import { SETTINGS_SECTIONS, type SettingsSection } from "@/app/routes";
 import { ModelSelect } from "@/components/common/ModelSelect";
 import { APP_VERSION } from "@/core";
@@ -35,6 +37,8 @@ const TABS: { key: Tab; label: string; icon: typeof Zap }[] = [
   { key: "routing", label: "任务路由", icon: Gauge },
   { key: "editor", label: "写作偏好", icon: Palette },
   { key: "privacy", label: "隐私", icon: ShieldCheck },
+  // 两条授权线各自一个分区：设备激活（授权码）与域名授权互不相干，别合并成一个「授权」页
+  { key: "license", label: "授权激活", icon: Fingerprint },
   { key: "data", label: "数据", icon: KeyRound },
   { key: "about", label: "关于", icon: Check },
 ];
@@ -98,6 +102,7 @@ export function SettingsPage() {
             {tab === "routing" && <RoutingTab />}
             {tab === "editor" && <EditorPreferences />}
             {tab === "privacy" && <PrivacyTab />}
+            {tab === "license" && <ActivationPanel />}
             {tab === "data" && <DataTab />}
             {tab === "about" && <AboutTab />}
           </div>

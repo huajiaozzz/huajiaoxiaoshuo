@@ -11,8 +11,14 @@ import { basename } from 'node:path';
 
 /**
  * 启动一个隔离的浏览器上下文。
+ *
+ * 授权卡点：未激活时应用会挡住「新建作品 / AI 建档」。绝大多数回归脚本只关心别的功能，
+ * 所以这里默认打开**仅 dev 构建生效**的开发绕行开关（见 src/license/status.ts），
+ * 让脚本不必先激活就能建项目。
+ * 要测授权本身（真卡点、真激活）的脚本请传 `{ licensing: true }` 关掉绕行。
+ *
  * @param {string} scriptUrl import.meta.url，用于推导 profile 名
- * @param {{viewport?: {width:number;height:number}; fresh?: boolean}} opts
+ * @param {{viewport?: {width:number;height:number}; fresh?: boolean; licensing?: boolean}} opts
  */
 export async function launchIsolated(scriptUrl, opts = {}) {
   const name = basename(new URL(scriptUrl).pathname).replace(/\.mjs$/, '');
@@ -39,6 +45,16 @@ export async function launchIsolated(scriptUrl, opts = {}) {
   if (!context) {
     console.error('无法启动浏览器：\n' + launchError);
     process.exit(2);
+  }
+  if (opts.licensing !== true) {
+    // dev 构建才认这个开关；生产构建里它恒不起作用
+    await context.addInitScript(() => {
+      try {
+        localStorage.setItem('huajiao:license:devBypass', '1');
+      } catch {
+        /* 无痕模式：忽略 */
+      }
+    });
   }
   return context;
 }

@@ -9,6 +9,8 @@ import { createProject } from "@/db/repo/projects";
 import { useAppStore } from "@/app/store";
 import type { GenesisDraft, LengthClass, NovelTemplate, PovStyle } from "@/core";
 import { lengthProfile } from "@/core";
+import { ActivationRequired } from "@/features/license/ActivationRequired";
+import { useLicenseGateState } from "@/features/license/useLicenseGate";
 import { TemplatePicker } from "./TemplatePicker";
 
 const POV_OPTIONS: { value: PovStyle; label: string; hint: string }[] = [
@@ -46,6 +48,10 @@ export function NewProjectDialog() {
   const [author, setAuthor] = useState("");
   const [busy, setBusy] = useState(false);
   const [template, setTemplate] = useState<NovelTemplate | null>(null);
+
+  // 授权卡点：设备授权码或域名授权任一条有效才允许新建作品（判定在 src/license/status.ts）
+  const { gate, loading: licenseLoading } = useLicenseGateState();
+  const blocked = !licenseLoading && gate !== null && !gate.activated;
 
   // 每次打开清空，避免上次残留
   useEffect(() => {
@@ -126,6 +132,13 @@ export function NewProjectDialog() {
             </Modal.Header>
 
             <Modal.Body>
+              {blocked ? (
+                <ActivationRequired
+                  gate={gate}
+                  title="新建作品需要授权"
+                  hint={gate?.message}
+                />
+              ) : (
               <div className="space-y-5">
                 <TemplatePicker
                   selectedId={template?.id}
@@ -215,17 +228,18 @@ export function NewProjectDialog() {
                   <Input placeholder="笔名" />
                 </TextField>
               </div>
+              )}
             </Modal.Body>
 
             <Modal.Footer>
               <Button size="sm" variant="ghost" isDisabled={busy} onPress={() => setOpen(false)}>
                 取消
               </Button>
-              <Button size="sm" variant="outline" isDisabled={!title.trim() || busy} onPress={() => void submit(false)}>
+              <Button size="sm" variant="outline" isDisabled={blocked || !title.trim() || busy} onPress={() => void submit(false)}>
                 先创建空白项目
                 <ArrowRight className="size-3.5" />
               </Button>
-              <Button size="sm" variant="primary" isDisabled={!title.trim() || busy} onPress={() => void submit(true)}>
+              <Button size="sm" variant="primary" isDisabled={blocked || !title.trim() || busy} onPress={() => void submit(true)}>
                 <Wand2 className="size-3.5" />
                 创建并用 AI 建档
               </Button>

@@ -14,6 +14,8 @@ import { ROUTES } from "@/app/routes";
 import { listGenesisRuns } from "@/db/repo/genesis";
 import { getProvider, listProviders, resolveModel } from "@/db/repo/settings";
 import { applyGenesis, runGenesis, type ApplyGenesisResult } from "@/ai/genesis";
+import { ActivationRequired } from "@/features/license/ActivationRequired";
+import { useLicenseGateState } from "@/features/license/useLicenseGate";
 import { GenesisForm, type UntilStage } from "./GenesisForm";
 import { GenesisPreview } from "./GenesisPreview";
 import { GenesisHistory } from "./GenesisHistory";
@@ -97,6 +99,9 @@ export function GenesisPage() {
   const pollRef = useRef<{ startedAt: number } | null>(null);
   const timingsRef = useRef<Record<string, number>>({});
   const seededRef = useRef<string | undefined>(undefined);
+
+  // 授权卡点：设备授权码或域名授权任一条有效才能跑 AI 建档
+  const { gate: licenseGate, loading: licenseLoading } = useLicenseGateState();
 
   // 用项目现有信息预填表单（只填一次）
   useEffect(() => {
@@ -197,6 +202,11 @@ export function GenesisPage() {
 
   async function start() {
     if (!seed.trim() || busy) return;
+    // 授权卡点：AI 建档要花模型额度，未授权不放行（两条线任一条有效即可）
+    if (licenseGate && !licenseGate.activated) {
+      notify("danger", "AI 建档需要授权", licenseGate.message);
+      return;
+    }
     setBusy(true);
     setElapsed(0);
     setApplyResult(undefined);
@@ -300,6 +310,9 @@ export function GenesisPage() {
       actions={statusMeta ? <Chip color={statusMeta.color}>{statusMeta.label}</Chip> : undefined}
     >
       <div ref={topRef} className="mx-auto max-w-5xl space-y-5 pb-12">
+        {!licenseLoading && licenseGate && !licenseGate.activated && (
+          <ActivationRequired gate={licenseGate} title="AI 建档需要授权" />
+        )}
         <GenesisForm
           seed={seed}
           onSeedChange={setSeed}

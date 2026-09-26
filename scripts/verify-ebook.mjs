@@ -82,7 +82,9 @@ writeFileSync('/tmp/nf-ebook/book.docx', Buffer.from(await docx.arrayBuffer()));
 console.log('EPUB 大小: ' + (await epub.arrayBuffer()).byteLength + ' bytes');
 console.log('DOCX 大小: ' + (await docx.arrayBuffer()).byteLength + ' bytes');
 
-const out = execFileSync('python3', ['/tmp/nf-verify-ebook.py'], { encoding: 'utf8' });
+// 校验器跟着 git 走：以前它躺在 /tmp，被系统清理后这里直接崩（表现为"单跑全过、换机器就失败"）
+const checker = new URL('./fixtures/verify-ebook.py', import.meta.url).pathname;
+const out = execFileSync('python3', [checker], { encoding: 'utf8' });
 const parsed = JSON.parse(out.slice(out.indexOf('{')));
 const e = parsed.epub;
 const d = parsed.docx;
