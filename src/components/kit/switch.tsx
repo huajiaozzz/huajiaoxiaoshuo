@@ -11,10 +11,14 @@ import { cn } from "@/lib/utils";
 type SwitchContextValue = { isSelected: boolean; onChange: (value: boolean) => void };
 const SwitchContext = React.createContext<SwitchContextValue | null>(null);
 
-export type SwitchProps = React.ComponentProps<"div"> & {
+export type SwitchProps = Omit<
+  React.ComponentProps<"div">,
+  "onChange" | "children"
+> & {
   isSelected: boolean;
   onChange: (value: boolean) => void;
   size?: "sm" | "md" | "lg";
+  children?: React.ReactNode;
 };
 
 function SwitchRoot({

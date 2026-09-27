@@ -14,7 +14,10 @@ import { cn } from "@/lib/utils";
 type FieldContextValue = { value: string; onChange: (value: string) => void };
 const FieldContext = React.createContext<FieldContextValue | null>(null);
 
-export type TextFieldProps = React.ComponentProps<"div"> & {
+export type TextFieldProps = Omit<
+  React.ComponentProps<"div">,
+  "value" | "onChange"
+> & {
   value: string;
   onChange: (value: string) => void;
   fullWidth?: boolean;
