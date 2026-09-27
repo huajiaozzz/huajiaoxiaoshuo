@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button, Input, Label, TextField } from "@heroui/react";
-import { KeyRound, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
+import { KeyRound, ShieldCheck, Trash2 } from "lucide-react";
 import { Field, SectionTitle } from "@/components/common/ui";
 import { useAppStore } from "@/app/store";
 import * as repo from "@/db/repo/license";
-import { activateDevice, currentDevice, deactivateDevice, heartbeatDevice } from "@/license/device";
+import { activateDevice, currentDevice, deactivateDevice } from "@/license/device";
 import { licenseGate, refreshLicenses, type GateStatus } from "@/license/status";
 import { formatExpiry } from "@/license/format";
 import { effectiveConnection } from "@/license/defaults";
@@ -26,7 +26,7 @@ export function ActivationPanel() {
   const [conn, setConn] = useState<LicenseConnection>(EMPTY_CONNECTION);
   const [licenseKey, setLicenseKey] = useState("");
   const [fingerprint, setFingerprint] = useState("");
-  const [busy, setBusy] = useState<"activate" | "check" | "deactivate" | null>(null);
+  const [busy, setBusy] = useState<"activate" | "deactivate" | null>(null);
   const [message, setMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
 
   const load = useCallback(async () => {
@@ -55,22 +55,6 @@ export function ActivationPanel() {
         setLicenseKey("");
         notify("success", "设备已激活", res.message);
       }
-      await load();
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const onCheck = async () => {
-    setBusy("check");
-    setMessage(null);
-    try {
-      const res = await heartbeatDevice(true);
-      setMessage(
-        res
-          ? { tone: res.ok ? "success" : "danger", text: res.message }
-          : { tone: "danger", text: "本机还没有激活记录，先填授权码激活再来核对" },
-      );
       await load();
     } finally {
       setBusy(null);
@@ -133,10 +117,6 @@ export function ActivationPanel() {
         </div>
         {record && (
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" isPending={busy === "check"} onPress={() => void onCheck()}>
-              <RefreshCw className="mr-1 inline size-3.5" />
-              立即核对
-            </Button>
             <Button size="sm" variant="outline" isPending={busy === "deactivate"} onPress={() => void onDeactivate()}>
               <Trash2 className="mr-1 inline size-3.5" />
               解绑本机

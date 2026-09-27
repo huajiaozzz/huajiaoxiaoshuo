@@ -176,9 +176,12 @@ const tamper = await page.evaluate(async () => {
 });
 check("改过到期时间 → 验签失败、不再放行", tamper.activated === false && tamper.state === "invalid", JSON.stringify(tamper));
 
-await clickButton("立即核对");
-await page.waitForTimeout(2500);
-const checkMsg = await licenseMessage();
+// 心跳不再靠按钮触发（界面上已删「立即核对」），直接调设备层强制核对
+const checkMsg = await page.evaluate(async () => {
+  const device = await import("/src/license/device.ts");
+  const res = await device.heartbeatDevice(true);
+  return res?.message ?? null;
+});
 check("心跳（允许 token 过期后回退授权码）", Boolean(checkMsg && !checkMsg.includes("网络")), checkMsg ?? "无消息");
 
 // ─────────────────────────────────────────────────────────────
