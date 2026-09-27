@@ -166,6 +166,19 @@ check('中文引号修复', cnQuote.ok && cnQuote.repairs.some((s) => s.includes
 check('无效输入返回 ok=false', json.parseJson('这不是 JSON').ok === false);
 check('asArray 兼容对象包裹', json.asArray({ items: [1, 2] }).length === 2);
 
+console.log('【授权错误文案】');
+const { licenseHint } = await load('src/license/messages.ts');
+const activateNet = licenseHint('network', '无法连接授权服务（离线或网络异常）', 'activate');
+const heartbeatNet = licenseHint('network', null, 'heartbeat');
+const activateTimeout = licenseHint('timeout', null, 'activate');
+const deactivateNet = licenseHint('network', null, 'deactivate');
+check('激活失败不谈宽限期', !activateNet.includes('宽限期') && !activateNet.includes('继续放行'), activateNet);
+check('激活失败给出下一步', activateNet.includes('重试') && activateNet.includes('联系作者'), activateNet);
+check('心跳网络失败也不写假宽限期', !heartbeatNet.includes('已按离线宽限期继续放行'), heartbeatNet);
+check('超时激活文案可执行', activateTimeout.includes('重试') && !activateTimeout.includes('宽限期'), activateTimeout);
+check('解绑网络失败不谈宽限期', !deactivateNet.includes('宽限期') && !deactivateNet.includes('继续放行'), deactivateNet);
+check('业务错误仍可拼服务端细节', licenseHint('LICENSE_NOT_FOUND', '授权码不存在').includes('LICENSE_NOT_FOUND') === false && licenseHint('LICENSE_NOT_FOUND', '授权码不存在').includes('检查'));
+
 console.log('');
 console.log('通过 ' + pass + ' 项，失败 ' + fail + ' 项');
 await vite.close();
