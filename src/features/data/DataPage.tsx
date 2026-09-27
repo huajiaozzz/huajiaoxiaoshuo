@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { Button, Chip, Label, TextArea, TextField, Input } from "@heroui/react";
+import { Button, Chip, Label, TextArea, TextField, Input } from "@/components/kit";
 import { BookMarked, Download, FileJson, FileText, Upload, Database, AlertTriangle, Check } from "lucide-react";
 import { PageScaffold } from "@/components/common/PageScaffold";
 import { EmptyHint, SectionTitle, StatCard } from "@/components/common/ui";

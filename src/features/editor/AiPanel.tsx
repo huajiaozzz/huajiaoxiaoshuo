@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Chip, TextArea, Tooltip } from "@heroui/react";
+import { Button, Chip, TextArea, Tooltip } from "@/components/kit";
 import {
   Check, ClipboardCopy, Expand, Feather, Languages, MessageSquareQuote, RefreshCw,
   Sparkles, SquareStack, Trash2, Wand2, X, AlertTriangle, Coins, ScanEye,

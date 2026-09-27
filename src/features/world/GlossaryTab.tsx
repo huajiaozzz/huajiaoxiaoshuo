@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import { Check, Pencil, Plus, ScanSearch, Trash2, X } from "lucide-react";
 import type { GlossaryTerm, ID, WorldEntry } from "@/core";
 import { deleteGlossary, upsertGlossary } from "@/db/repo/world";

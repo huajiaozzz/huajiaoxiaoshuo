@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Button, Card } from "@heroui/react";
+import { Button, Card } from "@/components/kit";
 import { BarChart3 } from "lucide-react";
 import type { ID } from "@/core";
 import { useChapters } from "@/app/hooks";

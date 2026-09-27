@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import { CheckCircle2, CircleAlert, Clock, EyeOff, GitBranch, TriangleAlert } from "lucide-react";
 import type { PlotThread } from "@/core";
 import { StatCard } from "@/components/common/ui";

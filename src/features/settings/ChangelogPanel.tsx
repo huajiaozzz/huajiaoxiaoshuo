@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Chip } from "@heroui/react";
+import { Button, Chip } from "@/components/kit";
 import { ChevronDown, ChevronRight, History } from "lucide-react";
 import { APP_VERSION, CHANGELOG, CHANGE_KIND_COLOR, CHANGE_KIND_LABEL, type ChangeKind, type Release } from "@/core";
 

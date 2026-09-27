@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Button, Chip, TextArea } from "@heroui/react";
+import { Button, Chip, TextArea } from "@/components/kit";
 import {
   Check, CheckCheck, CornerDownRight, MessageSquarePlus,
   Send, Trash2, Undo2, X, Sparkles, MessageSquare, ListChecks, ScanEye,

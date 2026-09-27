@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Button, Tabs } from "@heroui/react";
+import { Button } from "@/components/kit";
 import { Globe2, Layers, Plus, ShieldAlert, ShieldCheck, Sparkles, Users } from "lucide-react";
 import type { ID, WorldCategory } from "@/core";
 import { useAsync, useDebounced, useEntities, useGlossary, useProjects, useRules, useWorldEntries } from "@/app/hooks";
@@ -9,6 +9,7 @@ import { useAppStore } from "@/app/store";
 import { WORLD_CATEGORY_LABELS } from "@/db/defaults";
 import { PageScaffold } from "@/components/common/PageScaffold";
 import { EmptyHint, Loading, StatCard } from "@/components/common/ui";
+import { SlidingTabs, SlidingTabsPanel } from "@/components/common/SlidingTabs";
 import { ConflictModal } from "./ConflictModal";
 import { WorldGenDialog } from "./WorldGenDialog";
 import { WorldEntryDialog } from "./WorldEntryDialog";
@@ -164,15 +165,17 @@ export function WorldPage() {
           />
         </div>
 
-        <Tabs aria-label="世界观视图" selectedKey={tab} onSelectionChange={(key) => setTab(String(key))}>
-          <Tabs.ListContainer>
-            <Tabs.List>
-              <Tabs.Tab id="entries">世界观条目</Tabs.Tab>
-              <Tabs.Tab id="glossary">名词表</Tabs.Tab>
-            </Tabs.List>
-          </Tabs.ListContainer>
-
-          <Tabs.Panel id="entries">
+        {/* 滑动指示器标签栏：与其它页同一套（SlidingTabs）；tab 受控，弹窗里可编程切回「世界观条目」 */}
+        <SlidingTabs
+          items={[
+            { value: "entries", label: "世界观条目" },
+            { value: "glossary", label: "名词表" },
+          ]}
+          value={tab}
+          onChange={setTab}
+          ariaLabel="世界观视图"
+        >
+          <SlidingTabsPanel value="entries">
             {loading ? (
               <Loading />
             ) : (
@@ -201,14 +204,14 @@ export function WorldPage() {
                 </div>
               </>
             )}
-          </Tabs.Panel>
+          </SlidingTabsPanel>
 
-          <Tabs.Panel id="glossary">
+          <SlidingTabsPanel value="glossary">
             <div className="pt-3">
               <GlossaryTab projectId={projectId} glossary={glossary} entries={entries} />
             </div>
-          </Tabs.Panel>
-        </Tabs>
+          </SlidingTabsPanel>
+        </SlidingTabs>
       </div>
 
       {/* 编辑弹窗：由 creating / selected 驱动，关掉就是纯浏览 */}

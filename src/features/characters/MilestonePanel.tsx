@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Card } from "@heroui/react";
+import { Button, Card } from "@/components/kit";
 import { CalendarClock, Plus, Trash2 } from "lucide-react";
 import type { Character, CharacterMilestone, ID } from "@/core";
 import { useChapters } from "@/app/hooks";

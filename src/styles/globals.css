@@ -1,5 +1,8 @@
 @import "tailwindcss";
-@import "@heroui/styles";
+@import "./kit/index.css";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
 
 /**
  * HeroUI v3 修正层。
@@ -17,11 +20,13 @@
 }
 
 /**
- * 2) 让「当前选中的 Tab」一眼看得出来 —— 复刻官方分段控件的外观。
+ * 2) 「当前选中的 Tab」一眼看得出来 —— 复刻官方分段控件的外观。
  *
  * ## 走过的弯路（值得留着，免得下次再犯）
  *
- * 1. HeroUI 的 .tabs__tab[data-selected="true"] 只改文字颜色，在浅灰底上几乎看不出差别。
+ * 1. HeroUI 的 .tabs__tab[data-selected="true"] 只改文字颜色，在浅灰底上几乎看不出差别；
+ *    曾在这里给它叠"白色药丸"（background: var(--segment) + box-shadow: var(--surface-shadow)
+ *    + rounded-3xl），外观对了，但那是画死在选中项上的 —— 没有滑动动画。
  * 2. 我第一版自己画了个"品牌色实心药丸"。结果**两头不讨好**：
  *    紫色太跳，把标签栏变成整页最抢眼的东西；同时色块压住了文字对比度，
  *    反而更难看清哪一个被选中。
@@ -30,29 +35,14 @@
  *    项目原来那句"会崩所以不用"的注释是对的。我补了包裹层，崩溃没了，
  *    可它在本项目的 HeroUI 组合下**根本不渲染**（DOM 里查不到节点），原因没能定位。
  *
- * ## 最终做法
+ * ## 现状
  *
- * 放弃那个不工作的组件，改用**它所用的同一套原料**，直接画在选中的 tab 上：
- *   background: var(--segment)          —— 纯白
- *   box-shadow: var(--surface-shadow)   —— 官方那三层的细阴影
- *   border-radius: 沿用 rounded-3xl
- * 也就是官方文档里那个"白色药丸嵌在浅灰底上"的样子，克重与对比度都对。
- *
- * 唯一的代价：**没有滑动动画**（官方那个指示器会平滑移动过去）。
- * 静态外观一致，动效没有 —— 这是为了先把它做对，而不是为了好看而好看。
+ * 「没有滑动动画」的遗憾已经补上：三处标签页（写作分析 / 一致性报告 / 世界观）换成
+ * components/common/SlidingTabs.tsx（Animate UI Tabs + Highlight）——白色药丸借共享
+ * layoutId 平滑滑到新标签上，底色/阴影/圆角仍取上面那套 token，观感不变、只是会滑了；
+ * 伏笔 / 时间线页的分段视图切换同理由 components/common/SegmentedControl.tsx 的滑动药丸承担。
+ * HeroUI Tabs 已无使用方，下面那两条 .tabs__tab 修正规则随之删除（样式并进了组件）。
  */
-:where(.tabs__tab[data-selected="true"]) {
-  background-color: var(--segment);
-  color: var(--segment-foreground);
-  font-weight: 500;
-  box-shadow: var(--surface-shadow);
-}
-
-/* 未选中的：悬停给一点反馈，让"可以点"更明确 */
-:where(.tabs__tab:not([data-selected="true"]):not(:disabled):not([aria-disabled="true"])):hover {
-  color: var(--foreground);
-  opacity: 1;
-}
 
 /**
  * 3) 可选芯片（SelectChip）的选中态必须看得出来。
@@ -87,7 +77,11 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  /*
+    字体：西文/数字用 Geist（数字特别精神，统计大数字排版靠它），
+    中文自动落到 PingFang SC —— Geist 没有 CJK 字形，不会覆盖中文。
+  */
+  --font-sans: "Geist Variable", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
   --font-serif: "Songti SC", "Source Han Serif SC", "SimSun", Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
@@ -114,6 +108,32 @@
    * 一个区域只有一个主按钮，这才是主次分明。
    */
   --accent-soft-foreground: var(--foreground);
+}
+
+/**
+ * shadcn / Animate UI 的语义变量 —— 一律**别名到 HeroUI 的 token**。
+ *
+ * `shadcn init` 会塞进来一整套自己的调色板（--background/--foreground/--border/
+ * --radius…），那些名字与 HeroUI 撞车，直接把上面文档化的品牌色与圆角尺度
+ * 覆盖掉了。所以这里不引入第二套配色：
+ *   - 两边共用的名字（--background/--border/--radius…）什么都不写，直接用 HeroUI 的；
+ *   - 只有 shadcn 独有的名字（--card/--primary/--muted-foreground…）在这里补别名。
+ *
+ * 好处：Animate UI 组件的 bg-background / text-muted-foreground / border-border
+ * 自动跟随三套主题（中性 + 暖阳 + 柔彩）与深浅色，不需要逐个主题再配一遍。
+ */
+:root {
+  --card: var(--surface);
+  --card-foreground: var(--surface-foreground);
+  --popover: var(--surface);
+  --popover-foreground: var(--surface-foreground);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-foreground);
+  --secondary-foreground: var(--foreground);
+  --muted-foreground: color-mix(in oklab, var(--foreground) 58%, var(--background));
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+  --input: var(--border);
 }
 .dark {
   --accent: oklch(0.93 0 0);
@@ -405,4 +425,44 @@ body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+/*---break---
+ */
+@theme inline {
+  /* 字体不跟 shadcn 走：正文用上面 @theme 里的 Inter + 中文栈（写作工具，中文优先） */
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  /*
+    圆角**不**重定义：shadcn 默认把 rounded-* 整套换成 calc(var(--radius) * …)，
+    会改动全站既有组件的圆角尺度。rounded-* 保持 Tailwind 默认值，
+    Animate UI 组件里的 rounded-md/lg 因此与现有观感一致。
+  */
+}
+/*---break---
+ */
+@layer base {
+  /*
+    只铺「无色边框默认取 --border」这一条，让 shadcn/Animate UI 组件里裸写的
+    border 有颜色可依。body/html 的底色与字体**不接管** ——
+    页面底色由各页面的 bg-neutral-* 自己画，字体用上面 @theme 的中文栈。
+  */
+  * {
+    @apply border-border outline-ring/50;
+  }
 }

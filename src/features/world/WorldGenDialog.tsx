@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Chip, Modal, TextArea } from "@heroui/react";
+import { Button, Chip, Modal, TextArea } from "@/components/kit";
 import { Globe2, Sparkles, TriangleAlert } from "lucide-react";
 import type { ID, WorldCategory } from "@/core";
 import { WORLD_CATEGORY_LABELS } from "@/db/defaults";

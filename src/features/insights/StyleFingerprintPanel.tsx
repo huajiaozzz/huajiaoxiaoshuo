@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import { Copy, Fingerprint, RefreshCw, Sparkles } from "lucide-react";
 import type { Chapter, ID, StyleFingerprint } from "@/core";
 import { db } from "@/db/database";

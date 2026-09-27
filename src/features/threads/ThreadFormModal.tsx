@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Modal } from "@heroui/react";
+import { Button, Modal } from "@/components/kit";
 import { Save, Sparkles } from "lucide-react";
 import { SelectChip } from "@/components/common/ui";
 import type { Chapter, Character, ID, PlotThread } from "@/core";

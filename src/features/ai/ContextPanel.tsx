@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Card, Chip, Tooltip } from "@heroui/react";
+import { Card, Chip, Tooltip } from "@/components/kit";
 import { X } from "lucide-react";
 import type { ContextSource } from "@/core";
 import { EmptyHint } from "@/components/common/ui";

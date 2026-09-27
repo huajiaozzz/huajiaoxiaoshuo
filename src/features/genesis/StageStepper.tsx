@@ -1,4 +1,4 @@
-import { Card, Chip, Spinner } from "@heroui/react";
+import { Card, Chip, Spinner } from "@/components/kit";
 import { Check, Minus, X } from "lucide-react";
 import type { GenesisStage, GenesisStageKind } from "@/core";
 import { PIPELINE, STAGE_HINTS, STAGE_LABELS } from "./helpers";

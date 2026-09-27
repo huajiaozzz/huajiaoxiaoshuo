@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Button, Tooltip } from "@heroui/react";
+import { Button, Tooltip } from "@/components/kit";
 import {
   Compass,
   Feather,

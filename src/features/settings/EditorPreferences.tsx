@@ -1,4 +1,4 @@
-import { Button, Chip } from "@heroui/react";
+import { Button, Chip } from "@/components/kit";
 import { Minus, Plus, RotateCcw } from "lucide-react";
 import { useAppStore } from "@/app/store";
 import { DEFAULT_SETTINGS } from "@/db/repo/settings";

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Button, Card } from "@heroui/react";
+import { Button, Card } from "@/components/kit";
 import {
   ArrowLeft,
   Eye,

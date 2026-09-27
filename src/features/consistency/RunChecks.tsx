@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import {
   AlertTriangle, ArrowUpRight, Ban, BookOpen, Hammer, ListChecks, Play, Settings2, ShieldCheck, Sparkles, Waves, Zap,
 } from "lucide-react";
@@ -11,6 +11,7 @@ import {
 } from "@/ai/analysis";
 import { upsertIssue } from "@/db/repo/story";
 import { EmptyHint, Loading, Progress, SectionTitle, SeverityChip } from "@/components/common/ui";
+import { AnimatedNumber } from "@/components/common/AnimatedNumber";
 import { ROUTES } from "@/app/routes";
 import { useAppStore } from "@/app/store";
 import { useOpenSettings } from "@/app/useOpenSettings";
@@ -318,7 +319,9 @@ export function RunChecks({ projectId, chapters }: { projectId: ID; chapters: Ch
         {single.running && (
           <div className="mt-4 space-y-1.5">
             <p className="text-xs opacity-60">
-              {STAGES[Math.min(STAGES.length - 1, Math.floor(seconds / 3))]}（{seconds}s）
+              {/* 秒表每秒跳变：挂载即落位，只让变化的位滑动 */}
+              {STAGES[Math.min(STAGES.length - 1, Math.floor(seconds / 3))]}（
+              <AnimatedNumber value={seconds} suffix="s" thousandSeparator={undefined} initiallyStable />）
             </p>
             <Progress value={Math.min(seconds, 12)} max={12} />
             <p className="text-[11px] opacity-45">{chapterLabel(chapterId)} · 模型正在工作，可以随时中断</p>
@@ -355,7 +358,9 @@ export function RunChecks({ projectId, chapters }: { projectId: ID; chapters: Ch
                   新增 {singleCreatedCount} 条
                 </Chip>
                 {single.result.model && <span>模型 {single.result.model}</span>}
-                <span>耗时 {(single.result.ms / 1000).toFixed(1)}s</span>
+                <span>
+                  耗时 <AnimatedNumber value={single.result.ms / 1000} decimalPlaces={1} suffix="s" thousandSeparator={undefined} />
+                </span>
                 {single.result.promptTokens > 0 && <span>输入约 {fmtInt(single.result.promptTokens)} tokens</span>}
               </div>
               {singleCreatedCount === 0 ? (

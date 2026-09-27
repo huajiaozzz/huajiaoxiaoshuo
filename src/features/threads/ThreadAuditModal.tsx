@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, Card, Modal } from "@heroui/react";
+import { Button, Card, Modal } from "@/components/kit";
 import { RefreshCw, TriangleAlert } from "lucide-react";
 import { auditForeshadowing } from "@/ai/analysis";
 import { Loading } from "@/components/common/ui";

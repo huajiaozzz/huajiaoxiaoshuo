@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import { ArrowLeft, Link2, Plus, Save, Trash2, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Character, RelationKind, Relationship } from "@/core";

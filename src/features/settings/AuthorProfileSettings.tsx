@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Chip, Input, Label, TextArea, TextField } from "@heroui/react";
+import { Button, Chip, Input, Label, TextArea, TextField } from "@/components/kit";
 import { Plus, RotateCcw, Sparkles, Trash2, UserRound } from "lucide-react";
 import type { PovStyle } from "@/core";
 import { useAppStore } from "@/app/store";

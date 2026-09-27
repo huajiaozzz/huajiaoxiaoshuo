@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Button } from "@heroui/react";
+import { Button } from "@/components/kit";
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { createLayoutNodes, simulate, type LayoutLink, type LayoutNode } from "./forceLayout";
 

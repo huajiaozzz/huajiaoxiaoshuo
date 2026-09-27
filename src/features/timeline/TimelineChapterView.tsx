@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import type { Chapter, Character, TimelineEvent, WorldEntry } from "@/core";
 import { EmptyHint } from "@/components/common/ui";

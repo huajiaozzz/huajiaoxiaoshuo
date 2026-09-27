@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Button, Card, Chip, Tooltip } from "@heroui/react";
+import { Button, Card, Chip, Tooltip } from "@/components/kit";
 import { AlertTriangle, PanelRightClose, PanelRightOpen, Plus, Settings2, Sparkles } from "lucide-react";
 import type { AiSession, ChatMessage, ID } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";

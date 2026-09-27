@@ -1,4 +1,5 @@
-import { Button, Card, Chip, Tooltip } from "@heroui/react";
+import { Button, Card, Chip, Tooltip } from "@/components/kit";
+import { motion } from "motion/react";
 import { ArrowRight, CheckCircle2, Pencil, Quote, Trash2 } from "lucide-react";
 import type { Chapter, PlotThread } from "@/core";
 import { Progress } from "@/components/common/ui";
@@ -18,14 +19,18 @@ import { DIVIDER_CLASS } from "./styles";
 export function ThreadCard({
   thread,
   chapters,
-  highlighted,
+  flashSeq,
+  onFlashEnd,
   onEdit,
   onDelete,
   onQuickPayoff,
 }: {
   thread: PlotThread;
   chapters: Chapter[];
-  highlighted?: boolean;
+  /** 跳转闪光的序号（页面级递增）：出现即播一次闪光，重复跳转同一条也能重播 */
+  flashSeq?: number;
+  /** 闪光播完的回调 —— 清理调用方状态，替代旧的 setTimeout 定时撤高亮 */
+  onFlashEnd?: () => void;
   onEdit: (thread: PlotThread) => void;
   onDelete: (thread: PlotThread) => void;
   onQuickPayoff: (thread: PlotThread) => void;
@@ -34,12 +39,22 @@ export function ThreadCard({
   const open = thread.status !== "resolved" && thread.status !== "abandoned";
 
   return (
-    <Card
-      className={
-        "p-4 transition " +
-        (highlighted ? "ring-2 ring-neutral-900/60" : "")
-      }
-    >
+    <Card className="p-4">
+      {/*
+        跳转闪光：一圈自动衰减的描边（约 0.8s 淡入→保持→淡出），
+        取代旧的「setTimeout 到点瞬间撤掉 ring」那种硬切。
+      */}
+      {flashSeq !== undefined && (
+        <motion.div
+          key={flashSeq}
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-[inherit] ring-2 ring-neutral-900/60"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 1, 1, 0] }}
+          transition={{ duration: 0.8, times: [0, 0.15, 0.7, 1], ease: "easeOut" }}
+          onAnimationComplete={onFlashEnd}
+        />
+      )}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">

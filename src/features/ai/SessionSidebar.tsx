@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Button, Tooltip } from "@heroui/react";
+import { Button, Tooltip } from "@/components/kit";
 import { Archive, ArchiveRestore, Check, MessageSquare, Pencil, Plus, Trash2, X } from "lucide-react";
 import type { AiSession, ID } from "@/core";
 import { useDebounced } from "@/app/hooks";

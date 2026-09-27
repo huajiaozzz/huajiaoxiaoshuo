@@ -1,4 +1,4 @@
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import { Check, Settings2 } from "lucide-react";
 import type { ProviderConfig } from "@/core";
 import { SectionTitle } from "@/components/common/ui";

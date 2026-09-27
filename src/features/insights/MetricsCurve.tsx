@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Card } from "@heroui/react";
+import { Button, Card } from "@/components/kit";
 import { Calculator, LineChart as LineChartIcon } from "lucide-react";
 import type { Chapter, ID } from "@/core";
 import { useMetrics } from "@/app/hooks";

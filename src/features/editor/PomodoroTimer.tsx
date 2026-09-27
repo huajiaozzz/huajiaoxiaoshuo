@@ -1,8 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { Timer, Play, Pause, RotateCcw } from "lucide-react";
-import { formatClock } from "@/utils/format";
+import { AnimatedNumber } from "@/components/common/AnimatedNumber";
 
 const PRESETS = [15, 25, 45];
+
+/**
+ * "MM:SS" 逐位滚动：分、秒各两位。这里不靠 padStart（它只是防位宽抖动，
+ * 不会真的补出前导零），而是把十位/个位拆成独立数字，位宽恒定、前导零也在。
+ * 挂载直接落位，之后每秒只有变化的那一位滑动。
+ */
+function ClockDigits({ seconds }: { seconds: number }) {
+  const total = Math.max(0, Math.floor(seconds));
+  const mm = Math.floor(total / 60);
+  const ss = total % 60;
+  return (
+    <span className="inline-flex">
+      <AnimatedNumber value={Math.floor(mm / 10)} thousandSeparator={undefined} initiallyStable />
+      <AnimatedNumber value={mm % 10} thousandSeparator={undefined} initiallyStable />
+      <span>:</span>
+      <AnimatedNumber value={Math.floor(ss / 10)} thousandSeparator={undefined} initiallyStable />
+      <AnimatedNumber value={ss % 10} thousandSeparator={undefined} initiallyStable />
+    </span>
+  );
+}
 
 /** 状态栏里的番茄钟：默认 25 分钟，完成后把这段时间的新增字数回调出去。 */
 export function PomodoroTimer({ onComplete }: { onComplete: (minutes: number, wordsAdded: number) => void }) {
@@ -42,7 +62,7 @@ export function PomodoroTimer({ onComplete }: { onComplete: (minutes: number, wo
         title="番茄钟"
       >
         <Timer className="size-3" />
-        {formatClock(remaining)}
+        <ClockDigits seconds={remaining} />
       </button>
 
       {open && (
@@ -66,7 +86,9 @@ export function PomodoroTimer({ onComplete }: { onComplete: (minutes: number, wo
               </button>
             ))}
           </div>
-          <p className="tabular mb-2 text-center text-2xl font-semibold">{formatClock(remaining)}</p>
+          <p className="tabular mb-2 text-center text-2xl font-semibold">
+            <ClockDigits seconds={remaining} />
+          </p>
           <div className="flex justify-center gap-2">
             <button
               type="button"

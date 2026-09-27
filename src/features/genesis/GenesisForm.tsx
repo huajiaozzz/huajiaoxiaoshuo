@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Card, Chip, Input, Label, TextArea, TextField } from "@heroui/react";
+import { Button, Card, Chip, Input, Label, TextArea, TextField } from "@/components/kit";
 import { AlertTriangle, Plus, Settings2, Sparkles, X } from "lucide-react";
 import { SelectChip } from "@/components/common/ui";
 import type { GenesisConstraints, LengthClass, PovStyle } from "@/core";

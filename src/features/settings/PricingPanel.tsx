@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Button, Chip } from "@heroui/react";
+import { Button, Chip } from "@/components/kit";
 import { Check, Coins, Plus, Trash2, TriangleAlert } from "lucide-react";
 import type { ModelPricing } from "@/core";
 import { useLiveQuery } from "dexie-react-hooks";

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import { Link2, Plus, Trash2 } from "lucide-react";
 import type { ID, RelationKind, Relationship } from "@/core";
 import { useCharacters, useRelationships } from "@/app/hooks";

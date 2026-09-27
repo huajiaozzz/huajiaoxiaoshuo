@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Button, Input, Label, TextArea, TextField } from "@heroui/react";
+import { Button, Input, Label, TextArea, TextField } from "@/components/kit";
 import { RefreshCw, Search, Settings2, Sparkles } from "lucide-react";
 import { SelectChip } from "@/components/common/ui";
 import {

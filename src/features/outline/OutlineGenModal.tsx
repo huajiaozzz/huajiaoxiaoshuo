@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ID } from "@/core";
-import { Button, Chip, Input, Label, Modal, TextArea, TextField } from "@heroui/react";
+import { Button, Chip, Input, Label, Modal, TextArea, TextField } from "@/components/kit";
 import { AlertTriangle, Loader2, RefreshCw, Sparkles, Wand2 } from "lucide-react";
 import { useAppStore } from "@/app/store";
 import { errorText, tensionText } from "./outlineMeta";

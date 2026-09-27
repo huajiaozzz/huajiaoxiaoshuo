@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import {
   AlertOctagon, ArrowUpRight, Check, Copy, EyeOff, Search, ShieldAlert, Sparkles, Wand2, X,
 } from "lucide-react";

@@ -1,4 +1,4 @@
-import { Card, Chip } from "@heroui/react";
+import { Card, Chip } from "@/components/kit";
 import { BookOpen, Compass, Globe, ListTree, Scroll, Users } from "lucide-react";
 import type { Arc, Chapter, GenesisRun } from "@/core";
 import type { BibleData } from "@/ai/genesis";

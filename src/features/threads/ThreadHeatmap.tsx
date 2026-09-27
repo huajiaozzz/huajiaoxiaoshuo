@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Button, Card, Tooltip } from "@heroui/react";
+import { Button, Card, Tooltip } from "@/components/kit";
 import { ChevronLeft, ChevronRight, Loader2, ScanSearch } from "lucide-react";
 import type { Chapter, PlotThread } from "@/core";
 import { getChapterContent } from "@/db/repo/outline";

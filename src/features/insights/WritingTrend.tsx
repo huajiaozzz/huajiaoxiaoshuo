@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Button, Card } from "@heroui/react";
+import { Button, Card } from "@/components/kit";
 import { CalendarCheck, Clock, Flame, Gauge, RefreshCw, Timer } from "lucide-react";
 import type { Chapter, ID, PomodoroRecord, WritingSession } from "@/core";
 import { useAsync } from "@/app/hooks";

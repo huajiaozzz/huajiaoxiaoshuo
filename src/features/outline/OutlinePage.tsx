@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { ID } from "@/core";
-import { Button } from "@heroui/react";
+import { Button } from "@/components/kit";
 import { FilePlus2, FileText, Layers, ListTree, Plus, Sparkles, TrendingUp } from "lucide-react";
 import { PageScaffold } from "@/components/common/PageScaffold";
 import { EmptyHint, Loading, StatCard } from "@/components/common/ui";

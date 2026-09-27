@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Chip, Input, Label, TextField } from "@heroui/react";
+import { Button, Chip, Input, Label, TextField } from "@/components/kit";
 import { Cable, RefreshCw, Terminal } from "lucide-react";
 import { DEFAULT_PROXY_BASE, detectProxy, getProxyBase, setProxyBase } from "@/ai/proxy";
 import { useAppStore } from "@/app/store";

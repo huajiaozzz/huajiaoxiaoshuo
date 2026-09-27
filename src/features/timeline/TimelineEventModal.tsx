@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Modal } from "@heroui/react";
+import { Button, Modal } from "@/components/kit";
 import { Info, MapPin, Save } from "lucide-react";
 import { SelectChip } from "@/components/common/ui";
 import type { Arc, Chapter, Character, ID, TimelineEvent, WorldEntry } from "@/core";

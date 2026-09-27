@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Chip, TextArea, Tooltip } from "@heroui/react";
+import { Button, Chip, TextArea, Tooltip } from "@/components/kit";
 import { ThumbsDown, ThumbsUp } from "lucide-react";
 import type { AiTaskKind, ID } from "@/core";
 import { logFeedback } from "@/db/repo/ai";

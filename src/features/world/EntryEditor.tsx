@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Button, Card, Chip, Tooltip } from "@heroui/react";
+import { Button, Card, Chip, Tooltip } from "@/components/kit";
 import { Eye, Info, Link2, Pencil, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import type { ID, WorldCategory, WorldEntry, WorldRule } from "@/core";
 import { WORLD_CATEGORY_LABELS } from "@/db/defaults";

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Button } from "@heroui/react";
+import { Button } from "@/components/kit";
 import { FileQuestion } from "lucide-react";
 import { ROUTES } from "@/app/routes";
 

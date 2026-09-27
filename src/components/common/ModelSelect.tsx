@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Chip } from "@heroui/react";
+import { Button, Chip } from "@/components/kit";
 import { Check, ChevronDown, Search, X } from "lucide-react";
+import { AnimatePresence, type Transition } from "motion/react";
+import { Fade } from "@/components/animate-ui/primitives/effects/fade";
+import { Zoom } from "@/components/animate-ui/primitives/effects/zoom";
+
+// 弹层动效：入场 220ms、退场 160ms。tween + 快出缓收曲线，比 spring 更"快而不跳"
+const ENTER: Transition = { type: "tween", duration: 0.22, ease: [0.16, 1, 0.3, 1] };
+const EXIT: Transition = { type: "tween", duration: 0.16, ease: "easeOut" };
 
 /**
  * 模型选择器：按钮 + 带搜索的弹窗。
@@ -95,96 +102,109 @@ export function ModelSelect({
         <ChevronDown className="size-3.5 shrink-0 opacity-50" />
       </button>
 
-      {open && (
-        <div
-          className="fixed inset-0 z-[300] flex items-start justify-center bg-black/40 p-4 pt-[12vh] backdrop-blur-sm"
-          onClick={() => setOpen(false)}
-        >
-          <div
-            className="flex max-h-[70vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-neutral-900"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b border-black/5 px-5 py-3 dark:border-white/5">
-              <h3 className="text-sm font-semibold">{title}</h3>
-              <Button isIconOnly size="sm" variant="ghost" aria-label="关闭" onPress={() => setOpen(false)}>
-                <X className="size-4" />
-              </Button>
-            </div>
-
-            <div className="shrink-0 px-5 pt-3">
-              <div className="flex items-center gap-2 rounded-lg border border-black/10 px-2.5 py-1.5 dark:border-white/15">
-                <Search className="size-3.5 shrink-0 opacity-40" />
-                <input
-                  ref={inputRef}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="搜索模型…"
-                  className="w-full bg-transparent text-xs outline-none placeholder:opacity-40"
-                />
-                {query && (
-                  <button type="button" onClick={() => setQuery("")} aria-label="清空搜索">
-                    <X className="size-3.5 opacity-40" />
-                  </button>
-                )}
-              </div>
-              {filterHint && hiddenCount > 0 && (
-                <p className="mt-1.5 text-[10px] opacity-50">
-                  {filterHint}（已隐藏 {hiddenCount} 个非向量模型）
-                </p>
-              )}
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
-              {shown.length === 0 ? (
-                <p className="px-2 py-6 text-center text-xs opacity-50">
-                  {options.length === 0 ? "该供应商还没有模型列表，可在下方直接填写" : "没有匹配的模型"}
-                </p>
-              ) : (
-                <ul className="space-y-0.5">
-                  {shown.map((m) => (
-                    <li key={m}>
-                      <button
-                        type="button"
-                        onClick={() => pick(m)}
-                        className={
-                          "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition hover:bg-black/5 dark:hover:bg-white/10 " +
-                          (m === value ? "bg-black/[0.06] font-medium dark:bg-white/10" : "")
-                        }
-                      >
-                        <Check className={"size-3.5 shrink-0 " + (m === value ? "opacity-80" : "opacity-0")} />
-                        {/* break-all：长模型名在弹窗里也完整显示，不截断 */}
-                        <span className="min-w-0 break-all">{m}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {allowCustom && (
-              <div className="shrink-0 border-t border-black/5 px-5 py-3 dark:border-white/5">
-                <p className="mb-1.5 text-[10px] opacity-55">
-                  不在列表里也可以直接填（有些向量模型的名称不含 embed 字样）
-                </p>
-                <div className="flex items-center gap-2">
-                  <input
-                    value={custom}
-                    onChange={(e) => setCustom(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && custom.trim()) pick(custom.trim());
-                    }}
-                    placeholder="手动输入模型名"
-                    className="min-w-0 flex-1 rounded-lg border border-black/10 bg-transparent px-2 py-1.5 text-xs outline-none dark:border-white/15"
-                  />
-                  <Button size="sm" variant="outline" isDisabled={!custom.trim()} onPress={() => pick(custom.trim())}>
-                    使用
+      {/* 包 AnimatePresence：setOpen(false) 时先播完退场再卸载，否则弹层瞬间消失。
+          primitive 的 transition 进出共用，退场更快是靠 exit 目标自带的 transition 单独定的 */}
+      {/* 退场期间先断开交互：淡出时弹层还挂在页面上，再点一下会把一次关闭点成两次动作 */}
+      <div className={open ? "" : "pointer-events-none"}>
+        <AnimatePresence>
+          {open && (
+            <Fade
+              key="model-select"
+              className="fixed inset-0 z-[300] flex items-start justify-center bg-black/40 p-4 pt-[12vh] backdrop-blur-sm"
+              onClick={() => setOpen(false)}
+              transition={ENTER}
+              exit={{ opacity: 0, transition: EXIT }}
+            >
+              <Zoom
+                initialScale={0.96}
+                className="flex max-h-[70vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-neutral-900"
+                transition={ENTER}
+                exit={{ scale: 0.98, transition: EXIT }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex shrink-0 items-center justify-between border-b border-black/5 px-5 py-3 dark:border-white/5">
+                  <h3 className="text-sm font-semibold">{title}</h3>
+                  <Button isIconOnly size="sm" variant="ghost" aria-label="关闭" onPress={() => setOpen(false)}>
+                    <X className="size-4" />
                   </Button>
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+
+                <div className="shrink-0 px-5 pt-3">
+                  <div className="flex items-center gap-2 rounded-lg border border-black/10 px-2.5 py-1.5 dark:border-white/15">
+                    <Search className="size-3.5 shrink-0 opacity-40" />
+                    <input
+                      ref={inputRef}
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="搜索模型…"
+                      className="w-full bg-transparent text-xs outline-none placeholder:opacity-40"
+                    />
+                    {query && (
+                      <button type="button" onClick={() => setQuery("")} aria-label="清空搜索">
+                        <X className="size-3.5 opacity-40" />
+                      </button>
+                    )}
+                  </div>
+                  {filterHint && hiddenCount > 0 && (
+                    <p className="mt-1.5 text-[10px] opacity-50">
+                      {filterHint}（已隐藏 {hiddenCount} 个非向量模型）
+                    </p>
+                  )}
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
+                  {shown.length === 0 ? (
+                    <p className="px-2 py-6 text-center text-xs opacity-50">
+                      {options.length === 0 ? "该供应商还没有模型列表，可在下方直接填写" : "没有匹配的模型"}
+                    </p>
+                  ) : (
+                    <ul className="space-y-0.5">
+                      {shown.map((m) => (
+                        <li key={m}>
+                          <button
+                            type="button"
+                            onClick={() => pick(m)}
+                            className={
+                              "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition hover:bg-black/5 dark:hover:bg-white/10 " +
+                              (m === value ? "bg-black/[0.06] font-medium dark:bg-white/10" : "")
+                            }
+                          >
+                            <Check className={"size-3.5 shrink-0 " + (m === value ? "opacity-80" : "opacity-0")} />
+                            {/* break-all：长模型名在弹窗里也完整显示，不截断 */}
+                            <span className="min-w-0 break-all">{m}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {allowCustom && (
+                  <div className="shrink-0 border-t border-black/5 px-5 py-3 dark:border-white/5">
+                    <p className="mb-1.5 text-[10px] opacity-55">
+                      不在列表里也可以直接填（有些向量模型的名称不含 embed 字样）
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={custom}
+                        onChange={(e) => setCustom(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && custom.trim()) pick(custom.trim());
+                        }}
+                        placeholder="手动输入模型名"
+                        className="min-w-0 flex-1 rounded-lg border border-black/10 bg-transparent px-2 py-1.5 text-xs outline-none dark:border-white/15"
+                      />
+                      <Button size="sm" variant="outline" isDisabled={!custom.trim()} onPress={() => pick(custom.trim())}>
+                        使用
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </Zoom>
+            </Fade>
+          )}
+        </AnimatePresence>
+      </div>
     </>
   );
 }

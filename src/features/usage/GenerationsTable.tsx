@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Card, Chip, Tooltip } from "@heroui/react";
+import { Button, Card, Chip, Tooltip } from "@/components/kit";
 import type { AiGeneration } from "@/core";
 import { EmptyHint, SectionTitle } from "@/components/common/ui";
 import { TASK_LABELS } from "@/db/defaults";

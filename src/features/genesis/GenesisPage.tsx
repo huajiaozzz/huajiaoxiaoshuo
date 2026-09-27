@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import { ArrowRight, Check, ClipboardList, LayoutList } from "lucide-react";
 import type { GenesisConstraints, GenesisDraft, GenesisRun, LengthClass } from "@/core";
 import { lengthProfile } from "@/core";

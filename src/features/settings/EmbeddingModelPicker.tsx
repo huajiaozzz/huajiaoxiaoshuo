@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Chip } from "@heroui/react";
+import { Button, Chip } from "@/components/kit";
 import { Check, Download, HardDriveDownload, RefreshCw, TriangleAlert, X } from "lucide-react";
 import {
   EMBEDDING_MODELS, findModel, formatBytes, ollamaOrigin, probeOllama, pullOllamaModel,

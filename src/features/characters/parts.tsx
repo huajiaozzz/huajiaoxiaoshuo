@@ -1,5 +1,5 @@
 import { useState, type KeyboardEvent, type ReactNode } from "react";
-import { Button, Card, Modal } from "@heroui/react";
+import { Button, Card, Modal } from "@/components/kit";
 import { Check, Plus, X } from "lucide-react";
 import type { Character } from "@/core";
 import { avatarClass, avatarInitial, splitTags } from "./meta";

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { Tabs } from "@heroui/react";
 import { PageScaffold } from "@/components/common/PageScaffold";
+import { SlidingTabs, SlidingTabsPanel } from "@/components/common/SlidingTabs";
 import { Loading } from "@/components/common/ui";
 import { useChapters, useIssues, useProject } from "@/app/hooks";
 import { IssueBoard, DEFAULT_FILTERS, type IssueFilters } from "./IssueBoard";
@@ -9,8 +9,8 @@ import { RunChecks } from "./RunChecks";
 import { useSettle } from "./helpers";
 
 const TABS = [
-  { key: "board", label: "问题看板" },
-  { key: "run", label: "运行检查" },
+  { value: "board", label: "问题看板" },
+  { value: "run", label: "运行检查" },
 ];
 
 /** 一致性报告页：问题看板 + 运行检查 */
@@ -46,18 +46,9 @@ export function ConsistencyPage() {
       withNav
     >
       <div className="mx-auto max-w-6xl">
-        <Tabs selectedKey={tab} onSelectionChange={(key) => setTab(String(key))} className="w-full">
-          <Tabs.ListContainer className="mb-5">
-            <Tabs.List>
-              {TABS.map((t) => (
-                <Tabs.Tab key={t.key} id={t.key}>
-                  {t.label}
-                </Tabs.Tab>
-              ))}
-            </Tabs.List>
-          </Tabs.ListContainer>
-
-          <Tabs.Panel id="board">
+        {/* 滑动指示器标签栏：与写作分析页同一套（SlidingTabs），选中药丸平滑滑动 */}
+        <SlidingTabs items={TABS} value={tab} onChange={setTab} listClassName="mb-5" ariaLabel="一致性报告视角">
+          <SlidingTabsPanel value="board">
             <IssueBoard
               projectId={projectId}
               issues={issues}
@@ -65,11 +56,11 @@ export function ConsistencyPage() {
               filters={filters}
               onFiltersChange={setFilters}
             />
-          </Tabs.Panel>
-          <Tabs.Panel id="run">
+          </SlidingTabsPanel>
+          <SlidingTabsPanel value="run">
             <RunChecks projectId={projectId} chapters={chapters} />
-          </Tabs.Panel>
-        </Tabs>
+          </SlidingTabsPanel>
+        </SlidingTabs>
       </div>
     </PageScaffold>
   );

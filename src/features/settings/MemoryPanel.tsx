@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Button, Chip, Input, Switch, TextArea } from "@heroui/react";
+import { Button, Chip, Input, Switch, TextArea } from "@/components/kit";
 import {
   Brain, Check, Lightbulb, Pin, PinOff, Plus, RefreshCw, Sparkles, Trash2,
   EyeOff, Eye, AlertTriangle, BookMarked, Quote, GitMerge, X, Radar,

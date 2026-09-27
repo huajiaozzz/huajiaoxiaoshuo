@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import { ArrowRight, Check, CheckCheck, ExternalLink, GitBranch, MessageSquare, ScanEye, Sparkles, X } from "lucide-react";
 import type { ChapterComment, ID, ReviewSuggestion } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Chip, Modal, TextArea } from "@heroui/react";
+import { Button, Chip, Modal, TextArea } from "@/components/kit";
 import { Sparkles, TriangleAlert, Users } from "lucide-react";
 import type { ID } from "@/core";
 import { ROLE_LABEL } from "./meta";

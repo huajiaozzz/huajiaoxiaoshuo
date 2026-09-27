@@ -1,4 +1,4 @@
-import { Chip, Tooltip } from "@heroui/react";
+import { Chip, Tooltip } from "@/components/kit";
 import { MapPin, TriangleAlert } from "lucide-react";
 import type { Chapter, Character, ID, TimelineEvent, WorldEntry } from "@/core";
 import { chapterShortLabel } from "./timelineMeta";

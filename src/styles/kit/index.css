@@ -1,0 +1,39 @@
+/*
+ * 项目自带的控件样式层（原 @heroui/styles，已裁剪为只含本项目用到的组件）。
+ *
+ * 来源：@heroui/styles v3.2.6（MIT），按文件搬运、未改内容 —— 目的是让
+ * 「视觉规格」与「React 实现」解耦：React 组件已换成 src/components/kit/
+ * （shadcn + Animate UI 底座），但外观规格仍以这份 CSS 为准，逐像素不变。
+ *
+ * 结构与 HeroUI 保持一致，顺序**不能乱**（CSS 层叠优先级靠导入顺序）：
+ *   shared → 具体组件；theme 层在组件层之后（token 覆盖）；utilities 最后。
+ *
+ * 裁剪说明：只搬了 Button / Chip / Card / Input / TextArea / TextField /
+ * Modal / Tooltip / Switch / Spinner / Label / Description 这 12 个用到的组件，
+ * 其余 160+ 组件样式未搬。将来想把这套 CSS 改写成 Tailwind 工具类也可以，
+ * 但那是纯样式重构，与组件 API 无关。
+ */
+@layer theme, base, components, utilities;
+
+@import "./base.css" layer(base);
+
+/* shared 组件在前：后面的组件样式要能覆盖它们 */
+@import "./components/label.css" layer(components);
+@import "./components/description.css" layer(components);
+@import "./components/button.css" layer(components);
+@import "./components/card.css" layer(components);
+@import "./components/chip.css" layer(components);
+@import "./components/input.css" layer(components);
+@import "./components/textarea.css" layer(components);
+@import "./components/textfield.css" layer(components);
+@import "./components/spinner.css" layer(components);
+@import "./components/switch.css" layer(components);
+@import "./components/tooltip.css" layer(components);
+@import "./components/modal.css" layer(components);
+
+/* 主题 token（@theme 映射 + 变量取值），在组件层之后 */
+@import "./theme.css" layer(theme);
+@import "./variables.css" layer(theme);
+
+@import "./utilities.css";
+@import "./variants.css";

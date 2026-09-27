@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, Chip, Modal } from "@heroui/react";
+import { Button, Chip, Modal } from "@/components/kit";
 import { RefreshCw, Sparkles, TriangleAlert } from "lucide-react";
 import type { Character, CharacterVoice } from "@/core";
 import { runJson, systemWithProject } from "@/ai/runner";

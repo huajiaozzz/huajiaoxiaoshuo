@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Card, Chip, Spinner } from "@heroui/react";
 import { Check } from "lucide-react";
 import type { IssueSeverity } from "@/core";
+import { AnimatedStatValue } from "@/components/common/AnimatedNumber";
 
 /** 共享小组件：所有页面统一使用，避免各处重复造轮子。 */
 
@@ -67,7 +68,10 @@ export function StatCard({
         <p className="text-xs opacity-55">{label}</p>
         {icon && <span className={toneClass[tone]}>{icon}</span>}
       </div>
-      <p className="tabular mt-2 text-xl font-semibold tracking-tight">{value}</p>
+      {/* 数字逐位滚动（"12,345 字" 这类字符串会被拆成数字+单位，只滚数字） */}
+      <p className="tabular mt-2 text-xl font-semibold tracking-tight">
+        <AnimatedStatValue value={value} />
+      </p>
       {hint && <p className="mt-1 text-[11px] opacity-45">{hint}</p>}
     </Card>
   );

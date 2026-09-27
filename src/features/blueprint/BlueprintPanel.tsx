@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Button, Card, Chip, TextArea } from "@heroui/react";
+import { Button, Card, Chip, TextArea } from "@/components/kit";
 import {
   AlertTriangle, BookOpen, Check, Copy, ScanSearch, Sparkles, Trash2, Wand2,
 } from "lucide-react";

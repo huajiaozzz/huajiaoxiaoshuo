@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { Tabs } from "@heroui/react";
 import { PageScaffold } from "@/components/common/PageScaffold";
+import { SlidingTabs, SlidingTabsPanel } from "@/components/common/SlidingTabs";
 import { Loading } from "@/components/common/ui";
 import { useChapters, useProject } from "@/app/hooks";
 import { formatWords } from "@/utils/format";
@@ -13,11 +13,11 @@ import { MacroAuditPanel } from "./MacroAuditPanel";
 import { useSettle } from "./helpers";
 
 const TABS = [
-  { key: "trend", label: "写作趋势" },
-  { key: "metrics", label: "章节指标" },
-  { key: "style", label: "文风指纹" },
-  { key: "audit", label: "AI 味体检" },
-  { key: "macro", label: "宏观审计" },
+  { value: "trend", label: "写作趋势" },
+  { value: "metrics", label: "章节指标" },
+  { value: "style", label: "文风指纹" },
+  { value: "audit", label: "AI 味体检" },
+  { value: "macro", label: "宏观审计" },
 ];
 
 /** 写作分析页：趋势 / 指标曲线 / 文风指纹 / AI 味体检 / 宏观审计 */
@@ -41,38 +41,27 @@ export function InsightsPage() {
   return (
     <PageScaffold title="写作分析" description={chapters.length + " 章 · " + formatWords(totalWords)} withNav>
       <div className="mx-auto max-w-6xl">
-        <Tabs selectedKey={tab} onSelectionChange={(key) => setTab(String(key))} className="w-full">
-          {/*
-            必须用 ListContainer 包住 List：浅灰底（bg-default）挂在 .tabs__list-container 上，
-            少了这一层，白药丸就没有底色托着，选中态又会显得弱。
-            选中态的样式在 globals.css，见那里的说明。
-          */}
-          <Tabs.ListContainer className="mb-5">
-            <Tabs.List>
-              {TABS.map((t) => (
-                <Tabs.Tab key={t.key} id={t.key}>
-                  {t.label}
-                </Tabs.Tab>
-              ))}
-            </Tabs.List>
-          </Tabs.ListContainer>
-
-          <Tabs.Panel id="trend">
+        {/*
+          标签栏是 Animate UI 的滑动指示器（SlidingTabs）：选中药丸会平滑滑到新标签上，
+          白色药丸的底色/阴影/圆角沿用原 HeroUI tabs 的观感，只是不再静态闪现。
+        */}
+        <SlidingTabs items={TABS} value={tab} onChange={setTab} listClassName="mb-5" ariaLabel="写作分析视角">
+          <SlidingTabsPanel value="trend">
             <WritingTrend projectId={projectId} chapters={chapters} />
-          </Tabs.Panel>
-          <Tabs.Panel id="metrics">
+          </SlidingTabsPanel>
+          <SlidingTabsPanel value="metrics">
             <MetricsCurve projectId={projectId} chapters={chapters} />
-          </Tabs.Panel>
-          <Tabs.Panel id="style">
+          </SlidingTabsPanel>
+          <SlidingTabsPanel value="style">
             <StyleFingerprintPanel projectId={projectId} chapters={chapters} />
-          </Tabs.Panel>
-          <Tabs.Panel id="audit">
+          </SlidingTabsPanel>
+          <SlidingTabsPanel value="audit">
             <LocalAuditPanel projectId={projectId} chapters={chapters} />
-          </Tabs.Panel>
-          <Tabs.Panel id="macro">
+          </SlidingTabsPanel>
+          <SlidingTabsPanel value="macro">
             <MacroAuditPanel projectId={projectId} chapters={chapters} />
-          </Tabs.Panel>
-        </Tabs>
+          </SlidingTabsPanel>
+        </SlidingTabs>
       </div>
     </PageScaffold>
   );

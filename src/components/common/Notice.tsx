@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { AlertCircle, CheckCircle2, Info, TriangleAlert, X } from "lucide-react";
+import { AnimatePresence, motion, type Transition } from "motion/react";
 import { useAppStore } from "@/app/store";
 
 const STYLE: Record<string, { ring: string; icon: typeof Info; tint: string }> = {
@@ -8,6 +9,10 @@ const STYLE: Record<string, { ring: string; icon: typeof Info; tint: string }> =
   warning: { ring: "ring-amber-500/30", icon: TriangleAlert, tint: "text-amber-500" },
   danger: { ring: "ring-rose-500/30", icon: AlertCircle, tint: "text-rose-500" },
 };
+
+// 入场：右下角滑入 + 淡入；退场只淡出 180ms —— 滑出会让"消失"显得拖沓
+const ENTER: Transition = { type: "tween", duration: 0.22, ease: [0.16, 1, 0.3, 1] };
+const EXIT: Transition = { type: "tween", duration: 0.18, ease: "easeOut" };
 
 /** 全局轻提示：固定在右下角，4 秒自动消失，可手动关闭 */
 export function Notice() {
@@ -20,32 +25,40 @@ export function Notice() {
     return () => clearTimeout(t);
   }, [notice, clear]);
 
-  if (!notice) return null;
-  const s = STYLE[notice.kind] ?? STYLE.info;
+  const s = notice ? (STYLE[notice.kind] ?? STYLE.info) : STYLE.info;
   const Icon = s.icon;
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className={
-        "fixed bottom-5 right-5 z-[999] flex max-w-sm items-start gap-3 rounded-xl bg-white/95 px-4 py-3 shadow-lg ring-1 backdrop-blur dark:bg-neutral-900/95 " +
-        s.ring
-      }
-    >
-      <Icon className={"mt-0.5 size-4 shrink-0 " + s.tint} />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium leading-snug">{notice.text}</p>
-        {notice.detail && <p className="mt-1 text-xs leading-relaxed opacity-70">{notice.detail}</p>}
-      </div>
-      <button
-        type="button"
-        onClick={clear}
-        aria-label="关闭提示"
-        className="rounded p-0.5 opacity-50 transition hover:opacity-100"
-      >
-        <X className="size-3.5" />
-      </button>
-    </div>
+    // mode="wait"：新提示等旧提示淡出后再进，避免两条叠在同一个角落
+    <AnimatePresence mode="wait">
+      {notice && (
+        <motion.div
+          key={notice.id}
+          role="status"
+          aria-live="polite"
+          initial={{ opacity: 0, x: 24 }}
+          animate={{ opacity: 1, x: 0, transition: ENTER }}
+          exit={{ opacity: 0, transition: EXIT }}
+          className={
+            "fixed bottom-5 right-5 z-[999] flex max-w-sm items-start gap-3 rounded-xl bg-white/95 px-4 py-3 shadow-lg ring-1 backdrop-blur dark:bg-neutral-900/95 " +
+            s.ring
+          }
+        >
+          <Icon className={"mt-0.5 size-4 shrink-0 " + s.tint} />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium leading-snug">{notice.text}</p>
+            {notice.detail && <p className="mt-1 text-xs leading-relaxed opacity-70">{notice.detail}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={clear}
+            aria-label="关闭提示"
+            className="rounded p-0.5 opacity-50 transition hover:opacity-100"
+          >
+            <X className="size-3.5" />
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

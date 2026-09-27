@@ -1,4 +1,4 @@
-import { Card, Chip } from "@heroui/react";
+import { Card, Chip } from "@/components/kit";
 import { EmptyHint, SectionTitle } from "@/components/common/ui";
 import { TASK_LABELS } from "@/db/defaults";
 import { formatNumber } from "@/utils/format";

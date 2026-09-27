@@ -1,9 +1,10 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import { Filter, GitBranch, LayoutGrid, ListTree, Plus, Search, Sparkles, X } from "lucide-react";
 import type { PlotThread } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";
+import { SegmentedControl } from "@/components/common/SegmentedControl";
 import { EmptyHint, Loading, SectionTitle, StatCard } from "@/components/common/ui";
 import { useAsync, useChapters, useCharacters, useDebounced, useThreads } from "@/app/hooks";
 import { auditThreads, deleteThread, listThreads, updateThread } from "@/db/repo/story";
@@ -62,7 +63,11 @@ export function ThreadsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<PlotThread | null>(null);
   const [auditOpen, setAuditOpen] = useState(false);
-  const [highlightId, setHighlightId] = useState<string | undefined>(undefined);
+  /**
+   * 跳转闪光目标。seq 每次跳转递增、作为动画 key：
+   * 同一条伏笔连续跳转两次也会重播（仅靠 id 无法重新触发同一个动画）。
+   */
+  const [flash, setFlash] = useState<{ id: string; seq: number } | null>(null);
   /** 已展开全部分组（默认每个分组只渲染前 24 条） */
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
 
@@ -109,9 +114,9 @@ export function ThreadsPage() {
     return { open: open.length, resolved: resolved.length, planted: planted.length };
   }, [threads]);
 
-  const flash = (id: string) => {
-    setHighlightId(id);
-    window.setTimeout(() => setHighlightId((cur) => (cur === id ? undefined : cur)), 2600);
+  /** 跳到某条伏笔：播一次自动衰减的闪光，何时收尾由卡片的动画结束回调说了算 */
+  const flashTo = (id: string) => {
+    setFlash((prev) => ({ id, seq: (prev?.seq ?? 0) + 1 }));
   };
 
   const openCreate = () => {
@@ -133,7 +138,7 @@ export function ThreadsPage() {
     }
     try {
       await updateThread(thread.id, { payoffChapterId: latest.id, status: "resolved" });
-      flash(thread.id);
+      flashTo(thread.id);
       reloadProblems();
       notify("success", "已标记回收", "「" + thread.title + "」回收于第" + (latest.order + 1) + "章");
     } catch (e) {
@@ -200,7 +205,7 @@ export function ThreadsPage() {
           />
         </div>
 
-        <ViewSwitch
+        <SegmentedControl
           value={view}
           onChange={setView}
           options={[
@@ -327,7 +332,8 @@ export function ThreadsPage() {
                               key={thread.id}
                               thread={thread}
                               chapters={chapters}
-                              highlighted={highlightId === thread.id}
+                              flashSeq={flash?.id === thread.id ? flash.seq : undefined}
+                              onFlashEnd={() => setFlash(null)}
                               onEdit={openEdit}
                               onDelete={remove}
                               onQuickPayoff={quickPayoff}
@@ -390,7 +396,7 @@ export function ThreadsPage() {
         characters={characters}
         onSaved={() => {
           reloadProblems();
-          if (editing) flash(editing.id);
+          if (editing) flashTo(editing.id);
         }}
       />
 
@@ -417,37 +423,5 @@ function UnresolvedHint({ threads, problems }: { threads: PlotThread[]; problems
         </span>
       </div>
     </Card>
-  );
-}
-
-/** 视图切换：列表 / 热力图（用原生按钮实现，避免依赖实验性的 Tabs.Indicator） */
-function ViewSwitch({
-  value,
-  options,
-  onChange,
-}: {
-  value: View;
-  options: { value: View; label: string; icon: ReactNode }[];
-  onChange: (value: View) => void;
-}) {
-  return (
-    <div className="inline-flex items-center gap-1 rounded-xl border border-black/5 bg-white/70 p-1 dark:border-white/5 dark:bg-neutral-900/50">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => onChange(option.value)}
-          className={
-            "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition " +
-            (value === option.value
-              ? "bg-neutral-900 text-white shadow-sm"
-              : "opacity-60 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10")
-          }
-        >
-          {option.icon}
-          {option.label}
-        </button>
-      ))}
-    </div>
   );
 }

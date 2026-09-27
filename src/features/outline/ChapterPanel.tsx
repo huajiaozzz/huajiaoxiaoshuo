@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Chapter, ChapterStatus, ID } from "@/core";
-import { Button, Card, Chip, Description, Input, Label, TextArea, TextField } from "@heroui/react";
+import { Button, Card, Chip, Description, Input, Label, TextArea, TextField } from "@/components/kit";
 import { AlertTriangle, Check, Loader2, PenLine, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { ROUTES } from "@/app/routes";
 import { useAppStore } from "@/app/store";

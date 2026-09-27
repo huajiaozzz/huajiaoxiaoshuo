@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { Chapter, ChapterMetric } from "@/core";
-import { Card, Switch } from "@heroui/react";
+import { Card, Switch } from "@/components/kit";
 import { SectionTitle } from "@/components/common/ui";
 
 /** 画布逻辑尺寸：外层用 CSS 控制宽度，viewBox 保证窄屏自适应 */

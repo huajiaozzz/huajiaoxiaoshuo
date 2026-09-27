@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Input, Label, Modal, TextArea, TextField } from "@heroui/react";
+import { Button, Input, Label, Modal, TextArea, TextField } from "@/components/kit";
 import { ArrowRight, Wand2 } from "lucide-react";
 import { SelectChip } from "@/components/common/ui";
 import { ROUTES } from "@/app/routes";

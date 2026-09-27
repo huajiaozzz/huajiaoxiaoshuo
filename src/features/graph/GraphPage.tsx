@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, Card } from "@heroui/react";
+import { Button, Card } from "@/components/kit";
 import { Network, RefreshCw, Swords, UserRound, Users } from "lucide-react";
 import type { Relationship } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";

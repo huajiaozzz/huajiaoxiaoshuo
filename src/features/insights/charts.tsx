@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Tooltip } from "@heroui/react";
+import { Tooltip } from "@/components/kit";
 
 /**
  * 纯 SVG / div 的轻量图表原语。

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Chip } from "@heroui/react";
+import { Button, Chip } from "@/components/kit";
 import { Camera, RotateCcw, Trash2, X } from "lucide-react";
 import type { Chapter, Snapshot } from "@/core";
 import { useAppStore } from "@/app/store";

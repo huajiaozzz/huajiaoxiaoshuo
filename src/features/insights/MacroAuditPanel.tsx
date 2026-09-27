@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import { Activity, BarChart3, Compass, Gauge, Layers, Play, Stethoscope, Users } from "lucide-react";
 import type { Chapter, ID } from "@/core";
 import { macroAudit, type MacroAudit } from "@/ai/analysis";

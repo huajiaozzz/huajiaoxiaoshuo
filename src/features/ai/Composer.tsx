@@ -1,5 +1,5 @@
 import { useEffect, type RefObject } from "react";
-import { Button, Tooltip } from "@heroui/react";
+import { Button, Tooltip } from "@/components/kit";
 import { CornerDownLeft, Send, Square } from "lucide-react";
 
 /** 底部输入框：Enter 发送 / Shift+Enter 换行 */

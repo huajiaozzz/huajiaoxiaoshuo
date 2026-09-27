@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Button, Chip, Tooltip } from "@heroui/react";
+import { Button, Chip, Tooltip } from "@/components/kit";
 import {
   Clock, Eye, History, Keyboard, Maximize2, Minimize2, PanelLeftClose,
   PanelLeftOpen, PanelRightClose, PanelRightOpen, Save, ScanEye, Type, Wand2, Zap,
@@ -37,6 +37,10 @@ import { docToText as docToPlainText } from "@/utils/rich-text";
 import { SnapshotPanel } from "./SnapshotPanel";
 import { ChapterSettings } from "./ChapterSettings";
 import { PomodoroTimer } from "./PomodoroTimer";
+import { AnimatePresence } from "motion/react";
+import { Fade } from "@/components/animate-ui/primitives/effects/fade";
+import { Zoom } from "@/components/animate-ui/primitives/effects/zoom";
+import { AnimatedNumber } from "@/components/common/AnimatedNumber";
 
 export function EditorPage() {
   const { projectId = "", chapterId: routeChapterId } = useParams<{ projectId: string; chapterId: string }>();
@@ -643,9 +647,18 @@ export function EditorPage() {
   const statusBar = (
     <div className="flex shrink-0 items-center justify-between gap-3 border-t border-black/5 px-4 py-1.5 text-[11px] dark:border-white/5">
       <div className="flex items-center gap-3 opacity-60">
-        <span className="tabular">{formatWords(draftWords)}</span>
-        <span className="tabular opacity-70">{countChars(draftHtml)} 字符</span>
-        {sessionWords > 0 && <span className="tabular text-emerald-600 dark:text-emerald-400">本次 +{sessionWords}</span>}
+        {/* 这三个数字逐键变化：挂载直接落位（initiallyStable），打字时只有变化的位滑动 */}
+        <span className="tabular">
+          <RollingStat text={formatWords(draftWords)} />
+        </span>
+        <span className="tabular opacity-70">
+          <AnimatedNumber value={countChars(draftHtml)} suffix=" 字符" thousandSeparator={undefined} initiallyStable />
+        </span>
+        {sessionWords > 0 && (
+          <span className="tabular text-emerald-600 dark:text-emerald-400">
+            本次 +<AnimatedNumber value={sessionWords} thousandSeparator={undefined} initiallyStable />
+          </span>
+        )}
         {editorStore.dirty ? (
           <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
             <span className="animate-pulse-soft">●</span> 未保存
@@ -957,7 +970,10 @@ export function EditorPage() {
         />
       )}
 
-      {showShortcuts && <ShortcutSheet onClose={() => setShowShortcuts(false)} />}
+      {/* 关闭时是整棵卸载，AnimatePresence 补上遮罩淡出 / 面板缩出的退场 */}
+      <AnimatePresence>
+        {showShortcuts && <ShortcutSheet key="shortcuts" onClose={() => setShowShortcuts(false)} />}
+      </AnimatePresence>
 
       {flow && (
         <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
@@ -998,6 +1014,34 @@ export function EditorPage() {
   );
 }
 
+const STAT_TEXT_RE = /^([^\d]{0,4}?)(-?\d[\d,]*(?:\.\d+)?)(.*)$/s;
+
+/**
+ * 滚动的统计文字："12,345 字"、"1.23万 字" 只让数字逐位滑动，单位文字不动。
+ * 不直接用 AnimatedStatValue 是因为它不透传 initiallyStable —— 状态栏随编辑器挂载，
+ * 每次进章节数字都会从 0 整段滚一遍；这里挂载即落位，只有打字带来的增量才滑动。
+ */
+function RollingStat({ text }: { text: string }) {
+  const m = STAT_TEXT_RE.exec(text);
+  if (!m) return <>{text}</>;
+  const [, prefix, numText, suffix] = m;
+  const n = Number(numText.replace(/,/g, ""));
+  // 负数的负号走 SlidingNumber 自己的渲染，手感不稳，这里原样展示
+  if (!Number.isFinite(n) || n < 0) return <>{text}</>;
+  return (
+    <>
+      {prefix}
+      <AnimatedNumber
+        value={n}
+        decimalPlaces={(numText.split(".")[1] ?? "").length || undefined}
+        thousandSeparator={numText.includes(",") ? "," : undefined}
+        initiallyStable
+      />
+      {suffix}
+    </>
+  );
+}
+
 function ShortcutSheet({ onClose }: { onClose: () => void }) {
   const rows: [string, string][] = [
     ["⌘/Ctrl + S", "立即保存"],
@@ -1010,9 +1054,15 @@ function ShortcutSheet({ onClose }: { onClose: () => void }) {
     ["Shift + ?", "显示这份快捷键"],
   ];
   return (
-    <div className="fixed inset-0 z-[400] grid place-items-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div
+    <Fade
+      className="fixed inset-0 z-[400] grid place-items-center bg-black/40 backdrop-blur-sm"
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      onClick={onClose}
+    >
+      <Zoom
         className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl dark:bg-neutral-900"
+        initialScale={0.95}
+        transition={{ type: "spring", stiffness: 220, damping: 26 }}
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="mb-3 text-sm font-semibold">快捷键</h3>
@@ -1027,7 +1077,7 @@ function ShortcutSheet({ onClose }: { onClose: () => void }) {
         <Button className="mt-4" size="sm" variant="outline" fullWidth onPress={onClose}>
           知道了
         </Button>
-      </div>
-    </div>
+      </Zoom>
+    </Fade>
   );
 }

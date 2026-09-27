@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Chip } from "@heroui/react";
+import { Chip } from "@/components/kit";
 import { Star } from "lucide-react";
 import type { WorldCategory } from "@/core";
 import type { TitleIndex } from "./world-links";

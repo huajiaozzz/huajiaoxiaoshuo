@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Chip, Modal } from "@heroui/react";
+import { Button, Card, Chip, Modal } from "@/components/kit";
 import { Check, RefreshCw, Sparkles, TriangleAlert, Wand2 } from "lucide-react";
 import type { Chapter, Character, TimelineEvent, WorldEntry } from "@/core";
 import { extractFromChapter } from "@/ai/extract";

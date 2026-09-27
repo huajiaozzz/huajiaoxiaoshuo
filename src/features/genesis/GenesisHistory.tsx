@@ -1,4 +1,4 @@
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import { Eye, RotateCcw } from "lucide-react";
 import type { GenesisRun } from "@/core";
 import { EmptyHint, SectionTitle } from "@/components/common/ui";

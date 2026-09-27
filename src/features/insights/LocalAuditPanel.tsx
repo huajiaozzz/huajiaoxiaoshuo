@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import { AlertTriangle, BookOpenCheck, Ban, Play, Save, Search, Sparkles } from "lucide-react";
 import type { Chapter, ID } from "@/core";
 import { localAudit, persistLocalAudit, type LocalAudit } from "@/ai/analysis";

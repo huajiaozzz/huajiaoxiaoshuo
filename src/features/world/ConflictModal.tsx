@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Card, Chip, Modal } from "@heroui/react";
+import { Button, Card, Chip, Modal } from "@/components/kit";
 import { Copy, RefreshCw, ShieldCheck } from "lucide-react";
 import type { ContinuityRule, ID, WorldEntry } from "@/core";
 import { runJson, systemWithProject } from "@/ai/runner";

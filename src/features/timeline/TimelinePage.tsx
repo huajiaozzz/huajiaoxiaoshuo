@@ -1,9 +1,10 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import { Clock, Filter, Layers, Plus, Search, Sparkles, X } from "lucide-react";
 import type { ID, TimelineEvent } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";
+import { SegmentedControl } from "@/components/common/SegmentedControl";
 import { EmptyHint, Loading, StatCard } from "@/components/common/ui";
 import { useAppStore } from "@/app/store";
 import { useArcs, useAsync, useChapters, useCharacters, useDebounced, useTimeline, useWorldEntries } from "@/app/hooks";
@@ -50,7 +51,11 @@ export function TimelinePage() {
   const [editing, setEditing] = useState<TimelineEvent | null>(null);
   const [suggestedChapterId, setSuggestedChapterId] = useState<ID | undefined>(undefined);
   const [extractOpen, setExtractOpen] = useState(false);
-  const [highlightId, setHighlightId] = useState<string | undefined>(undefined);
+  /**
+   * 跳转闪光目标。seq 每次定位递增、作为动画 key：
+   * 同一条事件连续定位两次也会重播（仅靠 id 无法重新触发同一个动画）。
+   */
+  const [flash, setFlash] = useState<{ id: string; seq: number } | null>(null);
   /** 剧情内时间轴当前展示的事件上限 */
   const [visibleLimit, setVisibleLimit] = useState(EVENT_PAGE_SIZE);
 
@@ -127,10 +132,11 @@ export function TimelinePage() {
     }
   };
 
-  /** 从冲突面板定位到具体事件：切到剧情内轴并滚动 + 高亮 */
+  /** 从冲突面板定位到具体事件：切到剧情内轴并滚动 + 播一次自动衰减的闪光 */
   const locate = (eventId: ID) => {
     setView("inworld");
-    setHighlightId(eventId);
+    setFlash((prev) => ({ id: eventId, seq: (prev?.seq ?? 0) + 1 }));
+    // 这个 setTimeout 只是等视图切换渲染完再滚动，与闪光何时收尾无关
     window.setTimeout(() => {
       document.getElementById("tl-evt-" + eventId)?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 80);
@@ -185,7 +191,7 @@ export function TimelinePage() {
 
         <TimelineConflictPanel conflicts={conflicts} onLocate={locate} />
 
-        <ViewSwitch
+        <SegmentedControl
           value={view}
           onChange={setView}
           options={[
@@ -227,7 +233,9 @@ export function TimelinePage() {
                   characters={characters}
                   worldEntries={worldEntries}
                   conflictMap={conflictMap}
-                  highlightedId={highlightId}
+                  flashId={flash?.id}
+                  flashSeq={flash?.seq}
+                  onFlashEnd={() => setFlash(null)}
                   onEdit={openEdit}
                   onDelete={remove}
                 />
@@ -260,7 +268,8 @@ export function TimelinePage() {
                 characters={characters}
                 worldEntries={worldEntries}
                 conflictMap={conflictMap}
-                highlightedId={highlightId}
+                /* 章节轴仍是静态 ring（该组件不在本次改动范围），闪光只在剧情内轴播放 */
+                highlightedId={flash?.id}
                 onEdit={openEdit}
                 onDelete={remove}
                 onAddToChapter={(chapterId) => openCreate(chapterId)}
@@ -417,37 +426,5 @@ function FilterBar({
         </div>
       </div>
     </Card>
-  );
-}
-
-/** 视图切换：剧情内时间轴 / 章节轴（原生按钮实现，避免依赖实验性的 Tabs.Indicator） */
-function ViewSwitch({
-  value,
-  options,
-  onChange,
-}: {
-  value: View;
-  options: { value: View; label: string; icon: ReactNode }[];
-  onChange: (value: View) => void;
-}) {
-  return (
-    <div className="inline-flex items-center gap-1 rounded-xl border border-black/5 bg-white/70 p-1 dark:border-white/5 dark:bg-neutral-900/50">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => onChange(option.value)}
-          className={
-            "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition " +
-            (value === option.value
-              ? "bg-neutral-900 text-white shadow-sm"
-              : "opacity-60 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10")
-          }
-        >
-          {option.icon}
-          {option.label}
-        </button>
-      ))}
-    </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip } from "@/components/kit";
 import { Activity, ArrowDownRight, ArrowUpRight, Coins, Sparkles } from "lucide-react";
 import type { ModelPricing } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";

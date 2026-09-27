@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Button, Chip, Input, Label, Switch, TextArea, TextField } from "@heroui/react";
+import { Button, Chip, Input, Label, Switch, TextArea, TextField } from "@/components/kit";
 import { ArrowLeft, Brain, Check, Eraser, Eye, EyeOff, Fingerprint, Gauge, Globe, KeyRound, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, Zap } from "lucide-react";
+import { AnimatePresence, type Transition } from "motion/react";
+import { Fade } from "@/components/animate-ui/primitives/effects/fade";
+import { Zoom } from "@/components/animate-ui/primitives/effects/zoom";
 import type { AiTaskKind, ProviderConfig, ProviderKind, TaskRouting } from "@/core";
 import { useAppStore } from "@/app/store";
 import { ROUTES } from "@/app/routes";
@@ -593,6 +596,10 @@ function blankProvider(): ProviderConfig {
   };
 }
 
+// 供应商编辑弹层动效：入场 220ms、退场 160ms。tween + 快出缓收曲线，比 spring 更"快而不跳"
+const ENTER: Transition = { type: "tween", duration: 0.22, ease: [0.16, 1, 0.3, 1] };
+const EXIT: Transition = { type: "tween", duration: 0.16, ease: "easeOut" };
+
 function ProviderEditor({
   provider,
   onClose,
@@ -606,6 +613,14 @@ function ProviderEditor({
   const [modelsText, setModelsText] = useState(provider.models.join("\n"));
   const [fetching, setFetching] = useState(false);
   const [fetchNote, setFetchNote] = useState<string | null>(null);
+  // 弹层由 ModelsTab 条件渲染（{editing && ...}），onClose 一调用组件就被瞬间拔掉，
+  // 退出动画播不完。所以先播退场，退场结束再通知父级收尾（保存/关闭都走这里）
+  const [closing, setClosing] = useState(false);
+  const afterExitRef = useRef<(() => void) | null>(null);
+  const requestClose = (afterExit?: () => void) => {
+    if (afterExit) afterExitRef.current = afterExit;
+    setClosing(true);
+  };
 
   /**
    * 在弹窗里直接拉取模型列表。
@@ -652,66 +667,89 @@ function ProviderEditor({
     }
   };
 
+  // 包 AnimatePresence：closing 置 true 时先播完退场，onExitComplete 再让父级收尾。
+  // primitive 的 transition 进出共用，退场更快是靠 exit 目标自带的 transition 单独定的
   return (
-    <div className="fixed inset-0 z-[300] grid place-items-center bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div
-        className="w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl dark:bg-neutral-900"
-        onClick={(e) => e.stopPropagation()}
+    // 退场期间先断开交互：淡出时弹层还挂在页面上，再点一下会把一次关闭点成两次动作
+    <div className={closing ? "" : "pointer-events-none"}>
+      <AnimatePresence
+        onExitComplete={() => {
+          afterExitRef.current?.();
+          onClose();
+        }}
       >
-        <h3 className="text-sm font-semibold">编辑供应商</h3>
-        <TextField value={draft.name} onChange={(v) => setDraft({ ...draft, name: v })}>
-          <Label>名称</Label>
-          <Input placeholder="例如：公司内网 vLLM" />
-        </TextField>
-        <TextField value={draft.baseUrl} onChange={(v) => setDraft({ ...draft, baseUrl: v })}>
-          <Label>接口地址（OpenAI 兼容，到 /v1 为止）</Label>
-          <Input placeholder="https://api.example.com/v1" />
-        </TextField>
-        {/* 「协议类型」下拉已移除 —— 见文件顶部的 inferProviderKind 说明 */}
-        <TextField value={draft.apiKey ?? ""} onChange={(v) => setDraft({ ...draft, apiKey: v })}>
-          <Label>API Key</Label>
-          <Input placeholder="sk-…" />
-        </TextField>
-        <div>
-          <div className="mb-1.5 flex items-center justify-between gap-2">
-            <Label className="block text-xs">模型列表（每行一个）</Label>
-            <Button size="sm" variant="outline" isPending={fetching} onPress={() => void fetchModels()}>
-              <RefreshCw className="size-3.5" />
-              拉取模型列表
-            </Button>
-          </div>
-          <TextArea rows={4} value={modelsText} onChange={(e) => setModelsText(e.target.value)} />
-          {fetchNote && <p className="mt-1 text-[11px] opacity-65">{fetchNote}</p>}
-        </div>
-        <label className="flex items-center gap-2 text-xs opacity-70">
-          <input
-            type="checkbox"
-            checked={Boolean(draft.corsBlocked)}
-            onChange={(e) => setDraft({ ...draft, corsBlocked: e.target.checked })}
-            className="accent-neutral-900"
-          />
-          该服务不支持浏览器跨域（会尝试通过本地代理转发）
-        </label>
-        <div className="flex justify-end gap-2 pt-1">
-          <Button variant="ghost" onPress={onClose}>
-            取消
-          </Button>
-          <Button
-            variant="primary"
-            onPress={async () => {
-              await upsertProvider({
-                ...draft,
-                // kind 不再由用户选，保存时按接口地址推断（本地服务才需要区分）
-                kind: inferProviderKind(draft.baseUrl, draft.kind),
-                models: modelsText.split("\n").map((m) => m.trim()).filter(Boolean),
-              });
-              onSaved();
-            }}
+        {!closing && (
+          <Fade
+            key="provider-editor"
+            className="fixed inset-0 z-[300] grid place-items-center bg-black/40 p-4 backdrop-blur-sm"
+            onClick={() => requestClose()}
+            transition={ENTER}
+            exit={{ opacity: 0, transition: EXIT }}
           >
-            保存
-          </Button>
-        </div>
-      </div>
+            <Zoom
+              initialScale={0.96}
+              className="w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl dark:bg-neutral-900"
+              transition={ENTER}
+              exit={{ scale: 0.98, transition: EXIT }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-sm font-semibold">编辑供应商</h3>
+              <TextField value={draft.name} onChange={(v) => setDraft({ ...draft, name: v })}>
+                <Label>名称</Label>
+                <Input placeholder="例如：公司内网 vLLM" />
+              </TextField>
+              <TextField value={draft.baseUrl} onChange={(v) => setDraft({ ...draft, baseUrl: v })}>
+                <Label>接口地址（OpenAI 兼容，到 /v1 为止）</Label>
+                <Input placeholder="https://api.example.com/v1" />
+              </TextField>
+              {/* 「协议类型」下拉已移除 —— 见文件顶部的 inferProviderKind 说明 */}
+              <TextField value={draft.apiKey ?? ""} onChange={(v) => setDraft({ ...draft, apiKey: v })}>
+                <Label>API Key</Label>
+                <Input placeholder="sk-…" />
+              </TextField>
+              <div>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <Label className="block text-xs">模型列表（每行一个）</Label>
+                  <Button size="sm" variant="outline" isPending={fetching} onPress={() => void fetchModels()}>
+                    <RefreshCw className="size-3.5" />
+                    拉取模型列表
+                  </Button>
+                </div>
+                <TextArea rows={4} value={modelsText} onChange={(e) => setModelsText(e.target.value)} />
+                {fetchNote && <p className="mt-1 text-[11px] opacity-65">{fetchNote}</p>}
+              </div>
+              <label className="flex items-center gap-2 text-xs opacity-70">
+                <input
+                  type="checkbox"
+                  checked={Boolean(draft.corsBlocked)}
+                  onChange={(e) => setDraft({ ...draft, corsBlocked: e.target.checked })}
+                  className="accent-neutral-900"
+                />
+                该服务不支持浏览器跨域（会尝试通过本地代理转发）
+              </label>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="ghost" onPress={() => requestClose()}>
+                  取消
+                </Button>
+                <Button
+                  variant="primary"
+                  onPress={async () => {
+                    await upsertProvider({
+                      ...draft,
+                      // kind 不再由用户选，保存时按接口地址推断（本地服务才需要区分）
+                      kind: inferProviderKind(draft.baseUrl, draft.kind),
+                      models: modelsText.split("\n").map((m) => m.trim()).filter(Boolean),
+                    });
+                    requestClose(() => onSaved());
+                  }}
+                >
+                  保存
+                </Button>
+              </div>
+            </Zoom>
+          </Fade>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
