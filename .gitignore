@@ -27,3 +27,6 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# raw UI capture sources (web video uses promo-video/img)
+promo-video/shots/
