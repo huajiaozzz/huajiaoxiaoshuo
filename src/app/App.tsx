@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
-import { Spinner } from "@heroui/react";
+import { Spinner } from "@/components/kit";
 import { useAppStore, watchSystemTheme } from "./store";
 import { db } from "@/db/database";
 import { seedProviders, seedRouting } from "@/db/repo/settings";

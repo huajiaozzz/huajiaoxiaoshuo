@@ -1,0 +1,65 @@
+<!-- AI生成 -->
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>花椒写作 · 产品宣传片</title>
+  <meta name="description" content="花椒写作产品宣传片：纯网页渲染的 60 秒分镜短片，可直接导出 MP4。" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23c23b22'/%3E%3Ctext x='32' y='45' font-size='34' font-family='serif' fill='%23fff8f2' text-anchor='middle'%3E%E6%A4%92%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="top">
+      <a class="brand" href="../index.html">
+        <span class="brand-mark">椒</span>
+        <span class="brand-name">花椒写作</span>
+        <em>产品宣传片</em>
+      </a>
+      <div class="top-actions">
+        <button class="btn" id="btn-cc" aria-pressed="true">字幕</button>
+        <button class="btn" id="btn-loop" aria-pressed="false">循环</button>
+        <button class="btn btn-primary" id="btn-export">导出 MP4</button>
+      </div>
+    </header>
+
+    <section class="stage-wrap">
+      <canvas id="stage" width="1920" height="1080" aria-label="花椒写作宣传片画面"></canvas>
+      <div class="overlay" id="overlay" hidden>
+        <div class="overlay-card">
+          <div class="overlay-title">正在录制视频 <span id="export-pct">0%</span></div>
+          <div class="bar"><i id="export-fill"></i></div>
+          <div class="overlay-hint">
+            约 60 秒实时录制，请保持页面在前台 ·
+            <button class="link" id="btn-cancel">取消</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="transport">
+      <button class="play" id="btn-play" aria-label="播放 / 暂停">▶</button>
+      <div class="time"><span id="time-cur">0:00</span><span class="sep">/</span><span id="time-dur">1:00</span></div>
+      <div class="track" id="track" role="slider" aria-label="进度" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="track-fill" id="track-fill"></div>
+        <div class="ticks" id="ticks"></div>
+        <div class="knob" id="knob"></div>
+      </div>
+    </section>
+
+    <nav class="scenes" id="scenes"></nav>
+
+    <footer class="foot">
+      <p>
+        画面由 Canvas 逐帧绘制，仓库里没有任何视频文件；「导出 MP4」在浏览器内用 MediaRecorder 实时录制 1920×1080 画面，
+        录完自动下载，可直接投稿。快捷键：空格播放 / 暂停 · ← → 快退快进 5 秒 · 数字 1–7 跳转分镜。
+      </p>
+    </footer>
+  </main>
+  <script src="./film.js"></script>
+</body>
+</html>

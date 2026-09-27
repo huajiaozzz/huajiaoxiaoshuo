@@ -1,6 +1,6 @@
 import { NavLink, useParams } from "react-router-dom";
 import { Library, Plus, Settings as SettingsIcon } from "lucide-react";
-import { Button, Tooltip } from "@heroui/react";
+import { Button, Tooltip } from "@/components/kit";
 import { useAppStore } from "@/app/store";
 import { NAV_GROUPS, ROUTE_PAGES } from "@/app/nav";
 import { ROUTES } from "@/app/routes";
