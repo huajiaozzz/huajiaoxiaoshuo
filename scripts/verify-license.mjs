@@ -168,6 +168,7 @@ const tamper = await page.evaluate(async () => {
   const repo = await import("/src/db/repo/license.ts");
   const device = await import("/src/license/device.ts");
   const row = await repo.getDeviceLicense();
+  if (!row?.licenseFile) return { activated: null, state: "no-record", message: "没有授权记录可篡改（激活没成功）" };
   const original = row.licenseFile.expiresAt;
   await repo.saveDeviceLicense({ ...row, licenseFile: { ...row.licenseFile, expiresAt: "2099-12-31T00:00:00.000Z" } });
   const verdict = await device.deviceVerdict();
