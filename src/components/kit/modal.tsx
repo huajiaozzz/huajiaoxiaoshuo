@@ -32,18 +32,51 @@ import {
 type ModalSize = "xs" | "sm" | "md" | "lg" | "full" | "cover";
 type ModalScroll = "inside" | "outside";
 type ModalVariant = "blur" | "opaque" | "transparent";
+/** 垂直落位；居中靠 `.modal__dialog[data-placement] { my-auto }`，不打这个属性弹窗会贴顶 */
+type ModalPlacement = "auto" | "top" | "center" | "bottom";
 
 type ModalContextValue = {
   size: ModalSize;
   scroll: ModalScroll;
+  placement: ModalPlacement;
   isDismissable: boolean;
 };
 
 const ModalContext = React.createContext<ModalContextValue>({
   size: "md",
   scroll: "inside",
+  placement: "auto",
   isDismissable: true,
 });
+
+/**
+ * 视口高度（px 字符串），写进 `--visual-viewport-height`。
+ *
+ * modal.css 的布局链完全建立在这个变量上：遮罩/容器的高度、
+ * `.modal__dialog--scroll-inside` 的 `max-h-full` —— 没有它，弹窗拿不到高度上限，
+ * 内容一多就撑出屏幕且 Body 无法滚动（原版由 React Aria 写在遮罩上）。
+ * 用 visualViewport 而不是 window.innerHeight：手机上键盘弹出时它会变小，
+ * 弹窗才不会被键盘顶出屏幕。
+ */
+function useVisualViewportHeight(): string {
+  const [height, setHeight] = React.useState(() =>
+    typeof window === "undefined"
+      ? 0
+      : (window.visualViewport?.height ?? window.innerHeight),
+  );
+  React.useEffect(() => {
+    const vv = window.visualViewport;
+    const update = () => setHeight(vv?.height ?? window.innerHeight);
+    update();
+    vv?.addEventListener("resize", update);
+    window.addEventListener("resize", update);
+    return () => {
+      vv?.removeEventListener("resize", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+  return height + "px";
+}
 
 export type ModalProps = {
   isOpen?: boolean;
@@ -69,10 +102,16 @@ function ModalBackdrop({
   /** 点遮罩 / 按 Esc 是否关闭，默认 true（原版 isDismissable） */
   isDismissable?: boolean;
 }) {
+  const viewportHeight = useVisualViewportHeight();
   return (
-    <ModalContext.Provider value={{ size: "md", scroll: "inside", isDismissable }}>
+    <ModalContext.Provider
+      value={{ size: "md", scroll: "inside", placement: "auto", isDismissable }}
+    >
       <DialogPortal>
         <DialogOverlay
+          style={
+            { "--visual-viewport-height": viewportHeight } as React.CSSProperties
+          }
           className={cn("modal__backdrop", `modal__backdrop--${variant}`, className)}
         >
           {children}
@@ -87,17 +126,20 @@ function ModalContainer({
   className,
   size,
   scroll,
+  placement,
 }: {
   children?: React.ReactNode;
   className?: string;
   size?: ModalSize;
   scroll?: ModalScroll;
+  placement?: ModalPlacement;
 }) {
   const ctx = React.use(ModalContext);
   const next: ModalContextValue = {
     ...ctx,
     size: size ?? ctx.size,
     scroll: scroll ?? ctx.scroll,
+    placement: placement ?? ctx.placement,
   };
   return (
     <ModalContext.Provider value={next}>
@@ -118,18 +160,20 @@ function ModalContainer({
 function ModalDialog({
   children,
   className,
+  placement,
   ...props
-}: React.ComponentProps<typeof DialogContent>) {
+}: React.ComponentProps<typeof DialogContent> & { placement?: ModalPlacement }) {
   const ctx = React.use(ModalContext);
   return (
     <DialogContent
       aria-describedby={undefined}
+      data-placement={placement ?? ctx.placement}
       onInteractOutside={ctx.isDismissable ? undefined : (e) => e.preventDefault()}
       onEscapeKeyDown={ctx.isDismissable ? undefined : (e) => e.preventDefault()}
       className={cn(
         "modal__dialog",
         `modal__dialog--${ctx.size}`,
-        `modal__dialog--${ctx.scroll}`,
+        `modal__dialog--scroll-${ctx.scroll}`,
         className,
       )}
       {...props}
@@ -157,7 +201,7 @@ function ModalBody({ className, ...props }: React.ComponentProps<"div">) {
   const ctx = React.use(ModalContext);
   return (
     <div
-      className={cn("modal__body", `modal__body--${ctx.scroll}`, className)}
+      className={cn("modal__body", `modal__body--scroll-${ctx.scroll}`, className)}
       {...props}
     />
   );
