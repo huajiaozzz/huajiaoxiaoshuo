@@ -23,7 +23,7 @@
 | `verify-review.mjs` | 回归：审稿协作 —— 批注锚定与正文标记渲染、修订建议接受/拒绝与快照、**改稿后锚点自动重定位**、审稿台、更新日志 | `node scripts/verify-review.mjs` |
 | `verify-newproject-ai.mjs` | 回归：新建作品「AI 选题」—— 生成条数与内容来自模型、选中后书名/一句话故事/简介全部带出、**种子直通一句话成书**、模型连不上时必须留下可见错误 | 先起 `npm run mock-llm`，再 `node scripts/verify-newproject-ai.mjs` |
 | `verify-select-chip.mjs` | 回归：**所有可选芯片的选中态必须看得见** —— 源码不许再出现「靠 Chip 颜色表达选中」的写法；选中的芯片必须带 `.chip--selected` 与勾，且底色/内描边/字重与未选中项有可见差异（设置·创作者档案、新建作品分类都实测）；控制台干净 | `node scripts/verify-select-chip.mjs` |
-| `verify-license.mjs` | 回归：LicenseHub 授权（设备线 / 授权码）—— **未激活时「新建作品 / AI 建档」被卡**、授权页上没有任何接入信息输入框、域名线已删干净（静态）、激活→验签→**篡改授权文件必须被拒**→心跳→解绑→卡点恢复、控制台零错误 | 先起 LicenseHub（见 skill `license-hub-ops`）并准备 `/tmp/lh-fixtures.json`：`{ baseUrl, apiKey, product, licenseKey }`，再 `node scripts/verify-license.mjs` |
+| `verify-license.mjs` | 回归：LicenseHub 授权（设备线 / 授权码）—— **未激活只卡 AI 功能**（点 AI 建档 / 生成选题才提示，空白项目照建）、授权页上没有任何接入信息输入框、域名线已删干净（静态）、激活→验签→**篡改授权文件必须被拒**→心跳→解绑→卡点恢复、控制台零错误 | 先起 LicenseHub（见 skill `license-hub-ops`）并准备 `/tmp/lh-fixtures.json`：`{ baseUrl, apiKey, product, licenseKey }`，再 `node scripts/verify-license.mjs` |
 
 > 授权卡点开关：`scripts/lib/browser.mjs` 默认给测试上下文打开**只在 dev 构建生效**的开发绕行（`huajiao:license:devBypass`），所以其它脚本不用先激活就能建项目；**要测卡点本身的脚本必须传 `{ licensing: true }`**（`verify-license.mjs` 已这么做），否则断言会静默失效。
 > 授权页上没有接入信息输入框（用户只填授权码），脚本要指向其它 LicenseHub 实例时用 `{ licensing: true }` + `addInitScript` 写 `localStorage["huajiao:license:devConn"]`（同样只在 dev 构建生效）。

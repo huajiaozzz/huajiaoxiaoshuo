@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { ActivationRequired } from "@/features/license/ActivationRequired";
+import { useLicenseGateState } from "@/features/license/useLicenseGate";
 import { Button, Chip, Modal, TextArea } from "@/components/kit";
 import { Globe2, Sparkles, TriangleAlert } from "lucide-react";
 import type { ID, WorldCategory } from "@/core";
@@ -37,6 +39,14 @@ export function WorldGenDialog({
   const count = Math.max(1, Math.min(12, Number(countDraft) || 3));
   const [category, setCategory] = useState<WorldCategory | "auto">(defaultCategory ?? "auto");
   const [running, setRunning] = useState(false);
+  // 授权卡点：AI 生成属于 AI 功能，未激活时点「生成」就亮提示（不发请求）
+  const { gate } = useLicenseGateState();
+  const [askLicense, setAskLicense] = useState(false);
+  const requireLicense = () => {
+    if (gate?.activated) return true;
+    setAskLicense(true);
+    return false;
+  };
   const [applying, setApplying] = useState(false);
   const [rows, setRows] = useState<GeneratedWorldEntry[]>([]);
   const [checked, setChecked] = useState<string[]>([]);
@@ -120,6 +130,7 @@ export function WorldGenDialog({
             </Modal.Header>
 
             <Modal.Body>
+              {askLicense && !gate?.activated && <ActivationRequired gate={gate} title="AI 生成需要授权" />}
               <div className="space-y-3">
                 <div>
                   <p className="mb-1.5 text-xs font-medium">想要什么样的设定（可选）</p>
@@ -160,7 +171,10 @@ export function WorldGenDialog({
                     />
                     条
                   </label>
-                  <Button className="ml-auto" size="sm" variant="primary" isPending={running} onPress={() => void run()}>
+                  <Button className="ml-auto" size="sm" variant="primary" isPending={running} onPress={() => {
+                  if (!requireLicense()) return;
+                  void run();
+                }}>
                     <Sparkles className="size-3.5" />
                     {rows.length ? "重新生成" : "开始生成"}
                   </Button>

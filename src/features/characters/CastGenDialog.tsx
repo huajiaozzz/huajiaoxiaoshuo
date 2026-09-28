@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { ActivationRequired } from "@/features/license/ActivationRequired";
+import { useLicenseGateState } from "@/features/license/useLicenseGate";
 import { Button, Chip, Modal, TextArea } from "@/components/kit";
 import { Sparkles, TriangleAlert, Users } from "lucide-react";
 import type { ID } from "@/core";
@@ -37,6 +39,14 @@ export function CastGenDialog({
   const [countDraft, setCountDraft] = useState("3");
   const count = Math.max(1, Math.min(16, Number(countDraft) || 3));
   const [running, setRunning] = useState(false);
+  // 授权卡点：AI 生成属于 AI 功能，未激活时点「生成」就亮提示（不发请求）
+  const { gate } = useLicenseGateState();
+  const [askLicense, setAskLicense] = useState(false);
+  const requireLicense = () => {
+    if (gate?.activated) return true;
+    setAskLicense(true);
+    return false;
+  };
   const [applying, setApplying] = useState(false);
   const [rows, setRows] = useState<GeneratedCharacter[]>([]);
   const [checked, setChecked] = useState<string[]>([]);
@@ -137,6 +147,7 @@ export function CastGenDialog({
             </Modal.Header>
 
             <Modal.Body>
+              {askLicense && !gate?.activated && <ActivationRequired gate={gate} title="AI 生成需要授权" />}
               <div className="space-y-3">
                 <div>
                   <p className="mb-1.5 text-xs font-medium">想要什么样的人物（可选）</p>
@@ -160,7 +171,10 @@ export function CastGenDialog({
                     className="tabular w-14 rounded border border-black/10 bg-transparent px-1.5 py-0.5 text-center dark:border-white/15"
                   />
                   位
-                  <Button className="ml-auto" size="sm" variant="primary" isPending={running} onPress={() => void run()}>
+                  <Button className="ml-auto" size="sm" variant="primary" isPending={running} onPress={() => {
+                  if (!requireLicense()) return;
+                  void run();
+                }}>
                     <Sparkles className="size-3.5" />
                     {rows.length ? "重新生成" : "开始生成"}
                   </Button>

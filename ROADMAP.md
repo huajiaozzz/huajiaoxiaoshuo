@@ -97,7 +97,7 @@ node scripts/shot.mjs <url> <png>  # 任意页面截图 + 控制台错误收集
 | `verify-proxy` 本地代理 | 13 / 13 |
 | `verify-newproject-ai` AI 选题（生成 / 预填 / 种子交接 / 失败可见） | 21 / 21 |
 | `verify-select-chip` 可选芯片选中态（源码约定 + 真实渲染差异） | 12 / 12 |
-| `verify-license` 授权（设备授权码：卡点 / 激活 / 篡改 / 心跳 / 解绑） | 23 / 23 |
+| `verify-license` 授权（设备授权码：AI 功能卡点 / 激活 / 篡改 / 心跳 / 解绑） | 25 / 25 |
 | `ai-e2e` AI 全链路 | 零控制台错误 |
 | `run-all-verify` 批量跑（39 个） | 37 绿 / 2 跳过（`verify-conflict`、`verify-proxy` 需 `DEEPSEEK_KEY`） |
 

@@ -62,6 +62,8 @@ export class ProviderError extends Error {
     | 'aborted'
     /** 等待超时：与"取消"完全不同，需要明确告诉用户是慢，不是他取消的 */
     | 'timeout'
+    /** 未激活就点 AI 功能：不是故障，是授权卡点，要引导去激活 */
+    | 'license'
     | 'no-provider' | 'unsupported';
   readonly status?: number;
   readonly providerId?: string;
@@ -101,6 +103,8 @@ export class ProviderError extends Error {
         ].join(' ');
       case 'no-provider':
         return '还没有配置可用的模型。请到「设置 → 模型与 AI」添加供应商并填写 API Key。';
+      case 'license':
+        return '这个 AI 功能需要先激活：到「设置 → 授权激活」填一张授权码即可继续。';
       case 'network':
         return '网络不可达。若使用本地模型，请确认 Ollama / LM Studio 已启动；若是云端服务，请检查网络与地址是否正确。';
       default:

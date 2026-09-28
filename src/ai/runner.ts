@@ -6,6 +6,7 @@ import { newId } from "@/utils/id";
 import { chat, chatStream, type CallOptions } from "./llm";
 import { buildContext, type BuildContextOptions } from "./context";
 import { parseJson, type ParseResult } from "./json";
+import { licenseGate } from '@/license/status';
 import { ProviderError, type ChatRequest, type TaskRunOptions, type TaskRunResult } from "./types";
 import { baseSystem, setMemoryBlock } from "./prompts";
 import { markMemoryUsed, memoryForProject, recordMemoryUsage } from "@/db/repo/memory";
@@ -62,6 +63,18 @@ export interface TextRunResult extends TaskRunResult {
  */
 export async function runText(opts: RunTextOptions): Promise<TextRunResult> {
   const started = performance.now();
+
+  // 授权卡点：**AI 功能**（建档 / 选题 / 生成设定 / 续写…）未激活时一律不发请求。
+  // 卡在这一层而不是各个按钮上，是为了「其他 AI 生成设定」也一并被覆盖到；
+  // 未激活时各页面仍能自由创作与保存，只是不调用模型。
+  const gate = await licenseGate();
+  if (!gate.activated) {
+    return {
+      ...fail(new ProviderError('license', '这个 AI 功能需要先激活：到「设置 → 授权激活」填一张授权码即可继续。'), started),
+      contextSources: [],
+      contextTokens: 0,
+    };
+  }
   // 在第一个 await 之前取走注入清单，避免并发调用互相串台
   const injected = takePendingInjections();
   const settings = loadSettings();

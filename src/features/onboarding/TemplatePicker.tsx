@@ -50,6 +50,7 @@ export function TemplatePicker({
   genres = [],
   lengthClass,
   pov,
+  requireLicense,
 }: {
   selectedId?: string;
   onChange: (t: NovelTemplate | null) => void;
@@ -57,6 +58,8 @@ export function TemplatePicker({
   genres?: string[];
   lengthClass?: LengthClass;
   pov?: PovStyle;
+  /** AI 动作前问一句：返回 false 就不发请求（授权卡点，由父级把提示亮出来） */
+  requireLicense?: () => boolean;
 }) {
   const [mode, setMode] = useState<Mode>("library");
   const [category, setCategory] = useState<TemplateCategory>("all");
@@ -224,7 +227,10 @@ export function TemplatePicker({
               variant="primary"
               isDisabled={modelReady === false}
               isPending={busy}
-              onPress={() => void run()}
+              onPress={() => {
+                if (requireLicense && !requireLicense()) return;
+                void run();
+              }}
             >
               {candidates.length ? <RefreshCw className="size-3.5" /> : <Sparkles className="size-3.5" />}
               {candidates.length ? "换一批" : "生成选题"}

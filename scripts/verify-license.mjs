@@ -105,32 +105,57 @@ check(
 check("域名线的模块已经删掉（不留死代码）", !readFileSync("src/license/types.ts", "utf8").includes("DomainLicense"));
 
 // ─────────────────────────────────────────────────────────────
-console.log("【2】未激活 → 创作被卡住");
+console.log("【2】未激活 → 只卡 AI 功能（空白项目照建）");
 await gotoApp(page, BASE + "/", { settle: 1200 });
 await page.evaluate(() => {
   const b = [...document.querySelectorAll("button")].find((x) => (x.textContent ?? "").includes("新建作品"));
   b?.click();
 });
 await page.waitForTimeout(900);
-const blockedView = await page.evaluate(() => {
+// 先填书名：创建按钮的禁用条件里还有「书名不能为空」
+await fillByPlaceholder("长夜将至", "授权回归测试书");
+await page.waitForTimeout(500);
+const openView = await page.evaluate(() => {
   const body = document.body.innerText;
   const btns = [...document.querySelectorAll("button")].map((b) => ({
     t: (b.textContent ?? "").trim(),
     disabled: b.disabled || b.getAttribute("aria-disabled") === "true",
   }));
   return {
-    notice: body.includes("新建作品需要授权"),
-    formHidden: !body.includes("创作模板"),
-    gateEntry: btns.some((b) => b.t === "去激活"),
-    createDisabled: ["先创建空白项目", "创建并用 AI 建档"].every(
-      (label) => btns.find((b) => b.t.includes(label))?.disabled === true,
-    ),
+    noBlockNotice: !body.includes("新建作品需要授权"),
+    formVisible: body.includes("创作模板") && body.includes("书名"),
+    blankEnabled: !btns.find((b) => b.t.includes("先创建空白项目"))?.disabled,
   };
 });
-check("弹窗里显示「新建作品需要授权」", blockedView.notice);
-check("表单被隐藏（模板/体裁都点不到）", blockedView.formHidden);
-check("给出「去激活」入口", blockedView.gateEntry);
-check("创建类按钮全部禁用", blockedView.createDisabled);
+check("弹窗不再整体拦（没有「新建作品需要授权」）", openView.noBlockNotice);
+check("表单照常可填（模板/书名都在）", openView.formVisible);
+check("「先创建空白项目」可点（不卡创作）", openView.blankEnabled);
+
+// 点 AI 建档 → 该亮提示
+await clickButton("创建并用 AI 建档");
+await page.waitForTimeout(900);
+const aiBlocked = await page.evaluate(() => {
+  const body = document.body.innerText;
+  const btns = [...document.querySelectorAll("button")].map((b) => (b.textContent ?? "").trim());
+  return {
+    notice: body.includes("AI 功能需要授权"),
+    gateEntry: btns.includes("去激活"),
+    formStillThere: body.includes("创作模板"),
+  };
+});
+check("点「创建并用 AI 建档」才提示「AI 功能需要授权」", aiBlocked.notice);
+check("提示里有「去激活」入口", aiBlocked.gateEntry);
+check("提示不挡表单（表单还在）", aiBlocked.formStillThere);
+
+// 切到「AI 选题」页签点「生成选题」→ 同样提示
+await page.evaluate(() => {
+  const tab = [...document.querySelectorAll("button,[role=tab]")].find((x) => (x.textContent ?? "").trim() === "AI 选题");
+  tab?.click();
+});
+await page.waitForTimeout(600);
+await clickButton("生成选题");
+await page.waitForTimeout(900);
+check("点「生成选题」也提示（AI 选题同样要授权）", (await text()).includes("AI 功能需要授权"));
 await clickButton("取消");
 await page.waitForTimeout(300);
 
@@ -186,33 +211,26 @@ const checkMsg = await page.evaluate(async () => {
 check("心跳（允许 token 过期后回退授权码）", Boolean(checkMsg && !checkMsg.includes("网络")), checkMsg ?? "无消息");
 
 // ─────────────────────────────────────────────────────────────
-console.log("【4】激活后：新建作品放行");
+console.log("【4】激活后：AI 动作放行");
 await gotoApp(page, BASE + "/", { settle: 1200 });
 await page.evaluate(() => {
   const b = [...document.querySelectorAll("button")].find((x) => (x.textContent ?? "").includes("新建作品"));
   b?.click();
 });
 await page.waitForTimeout(900);
-// 书名填上：创建按钮的禁用条件里除了授权还有「书名不能为空」
 await fillByPlaceholder("长夜将至", "授权回归测试书");
-await page.waitForTimeout(400);
-const allowedView = await page.evaluate(() => {
+await page.waitForTimeout(500);
+await clickButton("创建并用 AI 建档");
+await page.waitForTimeout(1200);
+const afterActivate = await page.evaluate(() => {
   const body = document.body.innerText;
-  const btns = [...document.querySelectorAll("button")].map((b) => ({
-    t: (b.textContent ?? "").trim(),
-    disabled: b.disabled || b.getAttribute("aria-disabled") === "true",
-  }));
   return {
-    formVisible: body.includes("创作模板"),
-    noticeGone: !body.includes("新建作品需要授权"),
-    blankEnabled: !btns.find((b) => b.t.includes("先创建空白项目"))?.disabled,
+    noticeGone: !body.includes("AI 功能需要授权"),
+    movedOn: location.pathname.includes("/genesis") || body.includes("一句话成书"),
   };
 });
-check("模板表单回来了", allowedView.formVisible);
-check("「需要授权」提示消失", allowedView.noticeGone);
-check("「先创建空白项目」可点", allowedView.blankEnabled);
-await clickButton("取消");
-await page.waitForTimeout(300);
+check("「AI 功能需要授权」提示消失", afterActivate.noticeGone);
+check("AI 建档流程真的往下走了", afterActivate.movedOn);
 
 // ─────────────────────────────────────────────────────────────
 console.log("【5】解绑 → 卡点恢复");
@@ -233,7 +251,12 @@ await page.evaluate(() => {
   b?.click();
 });
 await page.waitForTimeout(900);
-check("卡点恢复（提示又回来了）", (await text()).includes("新建作品需要授权"));
+// 要先填书名：创建按钮的禁用条件里还有「书名不能为空」，否则点不到、也就看不到提示
+await fillByPlaceholder("长夜将至", "授权回归测试书");
+await page.waitForTimeout(500);
+await clickButton("创建并用 AI 建档");
+await page.waitForTimeout(900);
+check("卡点恢复（点 AI 又提示要授权）", (await text()).includes("AI 功能需要授权"));
 await clickButton("取消");
 
 // ─────────────────────────────────────────────────────────────
