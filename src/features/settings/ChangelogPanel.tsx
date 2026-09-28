@@ -3,6 +3,13 @@ import { Button, Chip } from "@/components/kit";
 import { ChevronDown, ChevronRight, History } from "lucide-react";
 import { APP_VERSION, CHANGELOG, CHANGE_KIND_COLOR, CHANGE_KIND_LABEL, type ChangeKind, type Release } from "@/core";
 
+/** 条目里的 **加粗** 要真按加粗渲染（以前星号直接显示出来，看着像乱码） */
+function renderItem(text: string) {
+  return text.split(/\*\*(.+?)\*\*/g).map((part, i) =>
+    i % 2 === 1 ? <strong key={i}>{part}</strong> : <span key={i}>{part}</span>,
+  );
+}
+
 /** 三类变更的固定展示顺序 */
 const KIND_ORDER: ChangeKind[] = ["added", "improved", "fixed"];
 
@@ -115,7 +122,7 @@ function ReleaseRow({
                   {entry.items.map((item, i) => (
                     <li key={i} className="flex gap-2 text-xs leading-relaxed">
                       <span className="mt-1.5 size-1 shrink-0 rounded-full bg-current opacity-30" />
-                      <span className="opacity-85">{item}</span>
+                      <span className="opacity-85">{renderItem(item)}</span>
                     </li>
                   ))}
                 </ul>
