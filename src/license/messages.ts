@@ -54,6 +54,7 @@ export function licenseHint(
   }
   const hint = reason ? HINTS[reason] : undefined;
   if (!hint) return detail ?? "未知错误";
-  if (!detail || detail.includes(hint)) return hint;
+  // 服务端原文与中文提示说的若是同一件事（互相包含），就不再重复一遍
+  if (!detail || detail.includes(hint) || hint.includes(detail)) return hint;
   return `${hint}（${detail}）`;
 }
