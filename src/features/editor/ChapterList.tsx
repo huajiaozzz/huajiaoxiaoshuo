@@ -9,6 +9,10 @@ import { ROUTES } from "@/app/routes";
 import { useDebounced } from "@/app/hooks";
 import { createChapter, deleteChapter, reorderChapters, updateChapter } from "@/db/repo/outline";
 import { formatWords } from "@/utils/format";
+import { Fade } from "@/components/animate-ui/primitives/effects/fade";
+
+/** 入场统一手感（同 ui.tsx）：spring、约 300ms 落位、几乎不回弹 */
+const ENTER = { type: "spring", stiffness: 220, damping: 26 } as const;
 
 interface Props {
   projectId: ID;
@@ -126,97 +130,105 @@ export function ChapterList({ projectId, arcs, chapters, activeChapterId, collap
     );
   }
 
-  const renderChapter = (c: Chapter) => (
-    <li key={c.id}>
-      <div
-        draggable
-        onDragStart={() => setDragId(c.id)}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDropTarget(c.id);
-        }}
-        onDragLeave={() => setDropTarget((t) => (t === c.id ? null : t))}
-        onDrop={() => void onDrop(c.id)}
-        className={
-          "group flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition " +
-          (c.id === activeChapterId
-            ? "bg-black/[0.06] font-medium text-neutral-900 dark:text-neutral-100"
-            : "hover:bg-black/5 dark:hover:bg-white/5") +
-          (dropTarget === c.id && dragId !== c.id ? " ring-1 ring-black/30" : "")
-        }
-      >
-        <GripVertical className="size-3 shrink-0 cursor-grab opacity-0 transition group-hover:opacity-40" />
-        <button
-          type="button"
-          className="min-w-0 flex-1 truncate text-left"
-          onClick={() => navigate(ROUTES.write(projectId, c.id))}
-          onDoubleClick={() => {
-            setRenaming(c.id);
-            setDraftTitle(c.title);
+  const renderChapter = (c: Chapter, index: number) => (
+    /*
+      章节行一次性淡入（inViewOnce，重渲染不重播）。
+      stagger 只给前 10 行（40ms/行），其余不排队立刻显示 —— 章节可能上百，
+      排队入场会让列表最后几行等好几秒。
+      动效挂在 li 上（li 无 transition 类），行自身 hover 的 CSS 过渡不受影响。
+    */
+    <Fade key={c.id} asChild inView inViewOnce transition={ENTER} delay={index < 10 ? index * 40 : 0}>
+      <li>
+        <div
+          draggable
+          onDragStart={() => setDragId(c.id)}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDropTarget(c.id);
           }}
+          onDragLeave={() => setDropTarget((t) => (t === c.id ? null : t))}
+          onDrop={() => void onDrop(c.id)}
+          className={
+            "group flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition " +
+            (c.id === activeChapterId
+              ? "bg-black/[0.06] font-medium text-neutral-900 dark:text-neutral-100"
+              : "hover:bg-black/5 dark:hover:bg-white/5") +
+            (dropTarget === c.id && dragId !== c.id ? " ring-1 ring-black/30" : "")
+          }
         >
-          {renaming === c.id ? (
-            <input
-              autoFocus
-              value={draftTitle}
-              onChange={(e) => setDraftTitle(e.target.value)}
-              onBlur={() => void commitRename()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void commitRename();
-                if (e.key === "Escape") setRenaming(null);
-              }}
-              className="w-full rounded bg-white px-1 text-sm outline-none ring-1 ring-black/25 dark:bg-neutral-900"
-            />
-          ) : (
-            <span>
-              <span className="tabular mr-1.5 opacity-45">{c.order + 1}</span>
-              {c.title}
-            </span>
-          )}
-        </button>
-        <span className="tabular shrink-0 text-[10px] opacity-40">{c.wordCount > 0 ? formatWords(c.wordCount) : ""}</span>
-        {/*
-          「章节属性」放在删除左边。
-          它以前在最左侧（标题之前），把标题挤得靠右，而且"打开设置"和"这一章叫什么"
-          是两个层次的东西，中间隔着标题很难形成"这是在操作这一章"的联想。
-          放到行尾与删除并列，两个"对本章的操作"就聚在一起了。
-        */}
-        {onOpenSettings && (
-          <Tooltip>
-            <Tooltip.Trigger>
-              <button
-                type="button"
-                aria-label="章节属性"
-                // 默认不显示，hover 或当前章才出现 —— 列表里不该有一排常驻图标
-                className={
-                  "shrink-0 rounded p-0.5 transition hover:bg-black/10 dark:hover:bg-white/15 " +
-                  (c.id === activeChapterId ? "opacity-50" : "opacity-0 group-hover:opacity-50") +
-                  " hover:!opacity-100"
-                }
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenSettings(c);
+          <GripVertical className="size-3 shrink-0 cursor-grab opacity-0 transition group-hover:opacity-40" />
+          <button
+            type="button"
+            className="min-w-0 flex-1 truncate text-left"
+            onClick={() => navigate(ROUTES.write(projectId, c.id))}
+            onDoubleClick={() => {
+              setRenaming(c.id);
+              setDraftTitle(c.title);
+            }}
+          >
+            {renaming === c.id ? (
+              <input
+                autoFocus
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
+                onBlur={() => void commitRename()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void commitRename();
+                  if (e.key === "Escape") setRenaming(null);
                 }}
-              >
-                <Settings2 className="size-3.5" />
-              </button>
-            </Tooltip.Trigger>
-            <Tooltip.Content>章节属性</Tooltip.Content>
-          </Tooltip>
-        )}
-        <button
-          type="button"
-          aria-label="删除章节"
-          className="shrink-0 opacity-0 transition hover:text-rose-500 group-hover:opacity-50"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (confirm(`删除《${c.title}》？正文与快照都会一起删除。`)) void deleteChapter(c.id);
-          }}
-        >
-          <Trash2 className="size-3" />
-        </button>
-      </div>
-    </li>
+                className="w-full rounded bg-white px-1 text-sm outline-none ring-1 ring-black/25 dark:bg-neutral-900"
+              />
+            ) : (
+              <span>
+                <span className="tabular mr-1.5 opacity-45">{c.order + 1}</span>
+                {c.title}
+              </span>
+            )}
+          </button>
+          <span className="tabular shrink-0 text-[10px] opacity-40">{c.wordCount > 0 ? formatWords(c.wordCount) : ""}</span>
+          {/*
+            「章节属性」放在删除左边。
+            它以前在最左侧（标题之前），把标题挤得靠右，而且"打开设置"和"这一章叫什么"
+            是两个层次的东西，中间隔着标题很难形成"这是在操作这一章"的联想。
+            放到行尾与删除并列，两个"对本章的操作"就聚在一起了。
+          */}
+          {onOpenSettings && (
+            <Tooltip>
+              <Tooltip.Trigger>
+                <button
+                  type="button"
+                  aria-label="章节属性"
+                  // 默认不显示，hover 或当前章才出现 —— 列表里不该有一排常驻图标
+                  className={
+                    "shrink-0 rounded p-0.5 transition hover:bg-black/10 dark:hover:bg-white/15 " +
+                    (c.id === activeChapterId ? "opacity-50" : "opacity-0 group-hover:opacity-50") +
+                    " hover:!opacity-100"
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenSettings(c);
+                  }}
+                >
+                  <Settings2 className="size-3.5" />
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Content>章节属性</Tooltip.Content>
+            </Tooltip>
+          )}
+          <button
+            type="button"
+            aria-label="删除章节"
+            className="shrink-0 opacity-0 transition hover:text-rose-500 group-hover:opacity-50"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (confirm(`删除《${c.title}》？正文与快照都会一起删除。`)) void deleteChapter(c.id);
+            }}
+          >
+            <Trash2 className="size-3" />
+          </button>
+        </div>
+      </li>
+    </Fade>
   );
 
   return (

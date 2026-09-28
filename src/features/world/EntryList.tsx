@@ -4,9 +4,13 @@ import { Link2, ListTree, Plus, Search, X } from "lucide-react";
 import type { ID, WorldCategory, WorldEntry } from "@/core";
 import { WORLD_CATEGORY_LABELS } from "@/db/defaults";
 import { EmptyHint, SectionTitle } from "@/components/common/ui";
+import { Fade } from "@/components/animate-ui/primitives/effects/fade";
 import { CategoryChip, ImportanceStars } from "./bits";
 import { categoryLabel } from "./world-labels";
 import { buildEntryTree, entryBreadcrumb, matchesQuery, summarizeBody, type EntryNode } from "./world-links";
+
+/** 入场统一手感（同 ui.tsx）：spring、约 300ms 落位、几乎不回弹 */
+const ENTER = { type: "spring", stiffness: 220, damping: 26 } as const;
 
 /** 列表分批渲染的批大小 */
 const PAGE_SIZE = 60;
@@ -174,18 +178,21 @@ export function EntryList({
         <EmptyHint title="没有匹配的条目" description="换个关键词，或把分类切回「全部」。" />
       ) : (
         <ul className="space-y-1.5">
-          {shown.map((row) => (
-            <li key={row.entry.id}>
-              <EntryRow
-                entry={row.entry}
-                depth={treeMode ? row.depth : 0}
-                breadcrumb={entryBreadcrumb(row.entry, byId)}
-                showParent={!treeMode}
-                refCount={(incoming.get(row.entry.id) ?? []).length}
-                selected={row.entry.id === selectedId}
-                onSelect={onSelect}
-              />
-            </li>
+          {/* 列表项轻入场：Fade 淡入，stagger 很小（25ms×前 8 项），其余立刻显示 */}
+          {shown.map((row, i) => (
+            <Fade key={row.entry.id} asChild inView inViewOnce transition={ENTER} delay={i < 8 ? i * 25 : 0}>
+              <li>
+                <EntryRow
+                  entry={row.entry}
+                  depth={treeMode ? row.depth : 0}
+                  breadcrumb={entryBreadcrumb(row.entry, byId)}
+                  showParent={!treeMode}
+                  refCount={(incoming.get(row.entry.id) ?? []).length}
+                  selected={row.entry.id === selectedId}
+                  onSelect={onSelect}
+                />
+              </li>
+            </Fade>
           ))}
           {shown.length < flatRows.length && (
             <li>

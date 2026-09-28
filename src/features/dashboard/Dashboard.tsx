@@ -9,6 +9,11 @@ import { useAppStore } from "@/app/store";
 import { formatRelative, formatWords, pct } from "@/utils/format";
 import { ProjectOverview } from "./ProjectOverview";
 import { PageScaffold } from "@/components/common/PageScaffold";
+import { Zoom } from "@/components/animate-ui/primitives/effects/zoom";
+import { Fade } from "@/components/animate-ui/primitives/effects/fade";
+
+/** 入场统一手感（同 ui.tsx）：spring、约 300ms 落位、几乎不回弹 */
+const ENTER = { type: "spring", stiffness: 220, damping: 26 } as const;
 
 const STATUS_LABEL: Record<string, string> = {
   planning: "筹备中",
@@ -61,80 +66,97 @@ export function Dashboard() {
         </div>
 
         {list.length === 0 ? (
-          <Card className="p-10 text-center">
-            <BookOpen className="mx-auto mb-4 size-9 opacity-25" />
-            <p className="font-medium">还没有作品</p>
-            <p className="mx-auto mt-2 max-w-sm text-sm opacity-60">
-              创建第一部作品，写一句灵感，让 AI 帮你把人物、世界观和分卷结构搭起来。
-            </p>
-            <Button className="mx-auto mt-5" variant="primary" onPress={() => setNewProjectOpen(true)}>
-              <Plus className="size-4" />
-              创建第一部作品
-            </Button>
-          </Card>
+          <Fade inView inViewOnce transition={ENTER}>
+            <Card className="p-10 text-center">
+              <BookOpen className="mx-auto mb-4 size-9 opacity-25" />
+              <p className="font-medium">还没有作品</p>
+              <p className="mx-auto mt-2 max-w-sm text-sm opacity-60">
+                创建第一部作品，写一句灵感，让 AI 帮你把人物、世界观和分卷结构搭起来。
+              </p>
+              <Button className="mx-auto mt-5" variant="primary" onPress={() => setNewProjectOpen(true)}>
+                <Plus className="size-4" />
+                创建第一部作品
+              </Button>
+            </Card>
+          </Fade>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {list.map((p) => (
-              <Card
+            {/*
+              卡片入场：Zoom 轻微放大落位（0.95→1）。
+              stagger 只给前 10 张（50ms/张），其余立刻显示 —— 作品多了也不会排一条长队。
+              外层 motion.div 用 display:grid 撑满格子，卡片等高与 hover-lift 都保持原样；
+              动效放在外层还顺带避开了卡片自身 transition 与 motion 抢 transform。
+            */}
+            {list.map((p, i) => (
+              <Zoom
                 key={p.id}
-                role="button"
-                tabIndex={0}
-                className="group cursor-pointer p-5 transition hover:-translate-y-0.5 hover:shadow-md"
-                onClick={() => {
-                  void setProject(p);
-                  navigate(ROUTES.overview(p.id));
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
+                inView
+                inViewOnce
+                initialScale={0.95}
+                transition={ENTER}
+                delay={i < 10 ? i * 50 : 0}
+                className="grid"
+              >
+                <Card
+                  role="button"
+                  tabIndex={0}
+                  className="group cursor-pointer p-5 transition hover:-translate-y-0.5 hover:shadow-md"
+                  onClick={() => {
                     void setProject(p);
                     navigate(ROUTES.overview(p.id));
-                  }
-                }}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <h2 className="min-w-0 flex-1 truncate font-medium">{p.title}</h2>
-                  <button
-                    type="button"
-                    aria-label="删除作品"
-                    className="opacity-0 transition group-hover:opacity-50 hover:!opacity-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm(`删除《${p.title}》？此操作不可撤销，所有章节与设定都会一起删除。`)) {
-                        void deleteProject(p.id);
-                      }
-                    }}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                </div>
-                {p.logline && <p className="mt-2 line-clamp-2 text-xs leading-relaxed opacity-60">{p.logline}</p>}
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {p.genres.map((g) => (
-                    <Chip key={g} size="sm">
-                      {g}
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      void setProject(p);
+                      navigate(ROUTES.overview(p.id));
+                    }
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <h2 className="min-w-0 flex-1 truncate font-medium">{p.title}</h2>
+                    <button
+                      type="button"
+                      aria-label="删除作品"
+                      className="opacity-0 transition group-hover:opacity-50 hover:!opacity-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`删除《${p.title}》？此操作不可撤销，所有章节与设定都会一起删除。`)) {
+                          void deleteProject(p.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                  {p.logline && <p className="mt-2 line-clamp-2 text-xs leading-relaxed opacity-60">{p.logline}</p>}
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {p.genres.map((g) => (
+                      <Chip key={g} size="sm">
+                        {g}
+                      </Chip>
+                    ))}
+                    <Chip size="sm" color="default">
+                      {STATUS_LABEL[p.status] ?? p.status}
                     </Chip>
-                  ))}
-                  <Chip size="sm" color="default">
-                    {STATUS_LABEL[p.status] ?? p.status}
-                  </Chip>
-                </div>
-                <div className="mt-4">
-                  <div className="flex items-baseline justify-between text-xs">
-                    <span className="tabular font-medium">{formatWords(p.stats.words)}</span>
-                    <span className="opacity-50">{pct(p.stats.words, p.targetWords).toFixed(1)}%</span>
                   </div>
-                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/10">
-                    <div
-                      className="h-full rounded-full bg-neutral-900 transition-all"
-                      style={{ width: `${pct(p.stats.words, p.targetWords)}%` }}
-                    />
+                  <div className="mt-4">
+                    <div className="flex items-baseline justify-between text-xs">
+                      <span className="tabular font-medium">{formatWords(p.stats.words)}</span>
+                      <span className="opacity-50">{pct(p.stats.words, p.targetWords).toFixed(1)}%</span>
+                    </div>
+                    <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-neutral-900 transition-all"
+                        style={{ width: `${pct(p.stats.words, p.targetWords)}%` }}
+                      />
+                    </div>
+                    <p className="mt-2 text-[11px] opacity-45">
+                      {p.stats.chapters} 章 · 更新于 {formatRelative(p.updatedAt)}
+                    </p>
                   </div>
-                  <p className="mt-2 text-[11px] opacity-45">
-                    {p.stats.chapters} 章 · 更新于 {formatRelative(p.updatedAt)}
-                  </p>
-                </div>
-              </Card>
+                </Card>
+              </Zoom>
             ))}
           </div>
         )}

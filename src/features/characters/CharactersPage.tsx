@@ -7,6 +7,7 @@ import { CastGenDialog } from "./CastGenDialog";
 import type { CharacterRole, ID } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";
 import { EmptyHint, Loading } from "@/components/common/ui";
+import { Zoom } from "@/components/animate-ui/primitives/effects/zoom";
 import { useChapters, useDebounced } from "@/app/hooks";
 import { createCharacter, deleteCharacter, listCharacters } from "@/db/repo/cast";
 import { ROUTES } from "@/app/routes";
@@ -18,6 +19,9 @@ import { ROLE_COLOR, ROLE_LABEL, ROLE_ORDER, STATUS_LABEL, roleLabel, roleWeight
 
 /** 每页展示的卡片数：角色可能有几百个，先渲染一批，剩下的"显示更多" */
 const PAGE_SIZE = 24;
+
+/** 入场统一手感（同 ui.tsx）：spring、约 300ms 落位、几乎不回弹 */
+const ENTER = { type: "spring", stiffness: 220, damping: 26 } as const;
 
 type SortKey = "role" | "name" | "updated";
 
@@ -226,70 +230,81 @@ function CharacterList({ projectId }: { projectId: string }) {
           ) : (
             <>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {visible.map((c) => (
-                  <Card
+                {/* 角色卡入场：Zoom 0.95→1 + stagger 50ms，只排前 10 张（24 张/页，尾巴立刻显示）。
+                    外层 display:grid 撑满格子，等高卡片与 hover-lift 都不变。 */}
+                {visible.map((c, i) => (
+                  <Zoom
                     key={c.id}
-                    role="button"
-                    tabIndex={0}
-                    className="group cursor-pointer p-4 transition hover:-translate-y-0.5 hover:shadow-md"
-                    onClick={() => navigate(ROUTES.character(projectId, c.id))}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        navigate(ROUTES.character(projectId, c.id));
-                      }
-                    }}
+                    inView
+                    inViewOnce
+                    initialScale={0.95}
+                    transition={ENTER}
+                    delay={i < 10 ? i * 50 : 0}
+                    className="grid"
                   >
-                    <div className="flex items-start gap-3">
-                      <CharacterAvatar character={c} size={44} />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="truncate font-medium">{c.name}</h3>
-                          <Chip size="sm" color={ROLE_COLOR[c.role]}>
-                            {roleLabel(c.role)}
-                          </Chip>
+                    <Card
+                      role="button"
+                      tabIndex={0}
+                      className="group cursor-pointer p-4 transition hover:-translate-y-0.5 hover:shadow-md"
+                      onClick={() => navigate(ROUTES.character(projectId, c.id))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          navigate(ROUTES.character(projectId, c.id));
+                        }
+                      }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <CharacterAvatar character={c} size={44} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="truncate font-medium">{c.name}</h3>
+                            <Chip size="sm" color={ROLE_COLOR[c.role]}>
+                              {roleLabel(c.role)}
+                            </Chip>
+                          </div>
+                          {c.aliases.length > 0 && (
+                            <p className="mt-0.5 truncate text-[11px] opacity-50">又名 {c.aliases.join("、")}</p>
+                          )}
                         </div>
-                        {c.aliases.length > 0 && (
-                          <p className="mt-0.5 truncate text-[11px] opacity-50">又名 {c.aliases.join("、")}</p>
-                        )}
+                        <button
+                          type="button"
+                          aria-label={"删除 " + c.name}
+                          className="-mt-1 -mr-1 rounded p-1 opacity-0 transition group-hover:opacity-50 hover:!opacity-100 hover:text-rose-500 focus:opacity-100"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPendingDelete({ id: c.id, name: c.name });
+                          }}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        aria-label={"删除 " + c.name}
-                        className="-mt-1 -mr-1 rounded p-1 opacity-0 transition group-hover:opacity-50 hover:!opacity-100 hover:text-rose-500 focus:opacity-100"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPendingDelete({ id: c.id, name: c.name });
-                        }}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </div>
 
-                    {c.tagline ? (
-                      <p className="mt-3 line-clamp-2 text-xs leading-relaxed opacity-65">{c.tagline}</p>
-                    ) : (
-                      <p className="mt-3 text-xs leading-relaxed opacity-35">还没有写定位</p>
-                    )}
+                      {c.tagline ? (
+                        <p className="mt-3 line-clamp-2 text-xs leading-relaxed opacity-65">{c.tagline}</p>
+                      ) : (
+                        <p className="mt-3 text-xs leading-relaxed opacity-35">还没有写定位</p>
+                      )}
 
-                    {c.tags.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-1">
-                        {c.tags.slice(0, 4).map((t) => (
-                          <Chip key={t} size="sm">
-                            {t}
-                          </Chip>
-                        ))}
-                        {c.tags.length > 4 && <span className="self-center text-[11px] opacity-45">+{c.tags.length - 4}</span>}
+                      {c.tags.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-1">
+                          {c.tags.slice(0, 4).map((t) => (
+                            <Chip key={t} size="sm">
+                              {t}
+                            </Chip>
+                          ))}
+                          {c.tags.length > 4 && <span className="self-center text-[11px] opacity-45">+{c.tags.length - 4}</span>}
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex items-center justify-between border-t border-black/5 pt-2.5 text-[11px] opacity-55 dark:border-white/5">
+                        <span className="tabular">出场 {appearanceCount.get(c.id) ?? 0} 章</span>
+                        <span>
+                          {STATUS_LABEL[c.status] ?? "未知"} · {formatRelative(c.updatedAt)}
+                        </span>
                       </div>
-                    )}
-
-                    <div className="mt-3 flex items-center justify-between border-t border-black/5 pt-2.5 text-[11px] opacity-55 dark:border-white/5">
-                      <span className="tabular">出场 {appearanceCount.get(c.id) ?? 0} 章</span>
-                      <span>
-                        {STATUS_LABEL[c.status] ?? "未知"} · {formatRelative(c.updatedAt)}
-                      </span>
-                    </div>
-                  </Card>
+                    </Card>
+                  </Zoom>
                 ))}
               </div>
 

@@ -10,9 +10,13 @@ import {
   createArc, createChapter, deleteArc, deleteChapter, reorderChapters, updateArc, updateChapter,
 } from "@/db/repo/outline";
 import { formatWords } from "@/utils/format";
+import { Fade } from "@/components/animate-ui/primitives/effects/fade";
 import {
   arcColor, chapterStatusColor, chapterStatusLabel, errorText, groupChapters, groupKeyOf, sumWords, tensionText,
 } from "./outlineMeta";
+
+/** 入场统一手感（同 ui.tsx）：spring、约 300ms 落位、几乎不回弹 */
+const ENTER = { type: "spring", stiffness: 220, damping: 26 } as const;
 
 /** 拖拽落点：落在某章的前/后，或直接落进某个卷（arcId = null 表示"未分卷"） */
 interface DropTarget {
@@ -174,14 +178,20 @@ export function OutlineTree({ projectId, arcs, chapters, selectedId, onSelect, o
     }
   };
 
-  const renderChapterRow = (chapter: Chapter) => {
-    const index = indexById.get(chapter.id) ?? 0;
+  const renderChapterRow = (chapter: Chapter, rowIndex: number) => {
+    const order = indexById.get(chapter.id) ?? 0;
     const active = chapter.id === selectedId;
     const dragging = dragId === chapter.id;
     const drop = dropTarget?.chapterId === chapter.id ? dropTarget.position : undefined;
 
     return (
-      <li key={chapter.id} className="relative">
+      /*
+        行入场只做很轻的 Fade（树里的行是操作对象，不是展示品）。
+        stagger 25ms×前 8 项，其余立刻显示；挂在 li 上（li 无 transition 类），
+        行自身的 hover 过渡与拖拽指示条都不受影响。
+      */
+      <Fade key={chapter.id} asChild inView inViewOnce transition={ENTER} delay={rowIndex < 8 ? rowIndex * 25 : 0}>
+        <li className="relative">
         {drop === "before" && <span className="absolute inset-x-1 -top-0.5 h-0.5 rounded bg-neutral-900" />}
         {drop === "after" && <span className="absolute inset-x-1 -bottom-0.5 h-0.5 rounded bg-neutral-900" />}
         <div
@@ -224,7 +234,7 @@ export function OutlineTree({ projectId, arcs, chapters, selectedId, onSelect, o
           }
         >
           <GripVertical className="size-3.5 shrink-0 cursor-grab opacity-20 transition group-hover:opacity-60" />
-          <span className="tabular w-7 shrink-0 text-[11px] opacity-45">{index + 1}</span>
+          <span className="tabular w-7 shrink-0 text-[11px] opacity-45">{order + 1}</span>
           <span className="min-w-0 flex-1 truncate text-[13px]">{chapter.title}</span>
           <Chip size="sm" color={chapterStatusColor(chapter.status)}>
             {chapterStatusLabel(chapter.status)}
@@ -285,7 +295,8 @@ export function OutlineTree({ projectId, arcs, chapters, selectedId, onSelect, o
             </button>
           </span>
         </div>
-      </li>
+        </li>
+      </Fade>
     );
   };
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button, Card, Chip, Tooltip } from "@heroui/react";
 import {
@@ -13,7 +13,14 @@ import { dailyWordCounts } from "@/db/repo/writing";
 import { auditThreads } from "@/db/repo/story";
 import { formatRelative, formatWords, pct, todayKey } from "@/utils/format";
 import { SectionTitle, StatCard } from "@/components/common/ui";
+import { AnimatedNumber } from "@/components/common/AnimatedNumber";
+import { Zooms } from "@/components/animate-ui/primitives/effects/zoom";
+import { Shine } from "@/components/animate-ui/primitives/effects/shine";
+import { Click } from "@/components/animate-ui/primitives/effects/click";
 import { CHAPTER_STATUS_LABEL } from "@/app/theme";
+
+/** 入场统一手感（同 ui.tsx）：spring、约 300ms 落位、几乎不回弹 */
+const ENTER = { type: "spring", stiffness: 220, damping: 26 } as const;
 
 /**
  * 项目总览：把「这本书现在什么情况、下一步该干什么」一屏说清。
@@ -48,6 +55,9 @@ export function ProjectOverview({ project }: { project: Project }) {
 
   // 时间基准只在挂载时取一次，避免渲染期间调用 impure 函数（也不该每次渲染都变）
   const [now] = useState(() => Date.now());
+
+  // 主 CTA 的涟漪范围（Click 不给 scope 会监听整个页面，哪儿点都冒涟漪）
+  const ctaScope = useRef<HTMLDivElement>(null);
 
   const writing = useMemo(() => {
     const kept = chapters.filter((c) => c.status !== "cut");
@@ -148,10 +158,24 @@ export function ProjectOverview({ project }: { project: Project }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="primary" onPress={() => navigate(ROUTES.write(project.id, nextChapter?.id))}>
-            <Feather className="size-4" />
-            {stats.words > 0 ? "继续写作" : "开始写第一章"}
-          </Button>
+          {/*
+            主 CTA：hover 扫光 + 点击涟漪，按钮本身视觉/行为不变。
+            - Click 必须给 scope，否则监听的是整个 document，页面任何位置点击都会冒涟漪。
+            - 涟漪色用 var(--accent-foreground)：它画在 body 层的 portal 里，currentColor
+              在那里解析成页面前景色，在强调色按钮上看不见；accent-foreground 是"强调色上的
+              前景色"，同样逐主题定义、随三套主题走 —— 落在按钮上是亮闪，溢出到页面背景的
+              部分几乎不可见，看起来正好是"按钮内的涟漪"。
+          */}
+          <Click variant="ripple" scope={ctaScope} color="var(--accent-foreground)">
+            <div ref={ctaScope}>
+              <Shine asChild enableOnHover duration={200} opacity={0.25}>
+                <Button variant="primary" onPress={() => navigate(ROUTES.write(project.id, nextChapter?.id))}>
+                  <Feather className="size-4" />
+                  {stats.words > 0 ? "继续写作" : "开始写第一章"}
+                </Button>
+              </Shine>
+            </div>
+          </Click>
           <Button variant="outline" onPress={() => navigate(ROUTES.ai(project.id))}>
             <Sparkles className="size-4" />
             AI 工作室
@@ -163,7 +187,10 @@ export function ProjectOverview({ project }: { project: Project }) {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs opacity-55">全书进度</p>
-            <p className="tabular mt-1 text-3xl font-semibold tracking-tight">{pct(stats.words, target).toFixed(1)}%</p>
+            {/* 大数字逐位滚动：保存后字数变化时从旧值滚到新值（不给 fromNumber，挂载时从 0 滚入） */}
+            <p className="tabular mt-1 text-3xl font-semibold tracking-tight">
+              <AnimatedNumber value={pct(stats.words, target)} decimalPlaces={1} suffix="%" />
+            </p>
           </div>
           <div className="text-right text-xs opacity-60">
             <p className="tabular">
@@ -203,9 +230,12 @@ export function ProjectOverview({ project }: { project: Project }) {
       </Card>
 
       <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map((d) => (
-          <StatCard key={d.label} label={d.label} value={d.value} hint={d.hint} icon={d.icon} tone={d.tone} />
-        ))}
+        {/* 统计卡入场：Zoom 0.95→1，50ms 依次落位；外层 display:grid 让卡片撑满格子高，等高不变 */}
+        <Zooms holdDelay={50} inView inViewOnce initialScale={0.95} transition={ENTER} className="grid">
+          {cards.map((d) => (
+            <StatCard key={d.label} label={d.label} value={d.value} hint={d.hint} icon={d.icon} tone={d.tone} />
+          ))}
+        </Zooms>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">

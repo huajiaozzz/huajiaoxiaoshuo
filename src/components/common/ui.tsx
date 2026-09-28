@@ -3,8 +3,18 @@ import { Card, Chip, Spinner } from "@heroui/react";
 import { Check } from "lucide-react";
 import type { IssueSeverity } from "@/core";
 import { AnimatedStatValue } from "@/components/common/AnimatedNumber";
+import { Fade } from "@/components/animate-ui/primitives/effects/fade";
+import { Zoom } from "@/components/animate-ui/primitives/effects/zoom";
 
 /** 共享小组件：所有页面统一使用，避免各处重复造轮子。 */
+
+/**
+ * 入场动效统一手感：spring、约 300ms 落位、几乎不回弹。
+ * 取 stiffness 220 / damping 26 —— 比"默认弹簧"更稳，卡片和列表落位时不会弹一下。
+ * 各文件各自持有同款常量（而非从这里导出）：oxlint 的 only-export-components
+ * 不允许组件文件导出对象常量（会破坏 Fast Refresh），宁可重复一行也不动 lint 配置。
+ */
+const ENTER = { type: "spring", stiffness: 220, damping: 26 } as const;
 
 export function SectionTitle({ children, hint, action }: { children: ReactNode; hint?: string; action?: ReactNode }) {
   return (
@@ -88,16 +98,32 @@ export function EmptyHint({
   description?: string;
   action?: ReactNode;
 }) {
+  /*
+    空状态是"唯一没有内容可看"的时刻，值得一次很轻的入场：
+    整体淡入落位，图标轻微放大一次（Zoom 只放一次，不做持续浮动——
+    空态常出现在列表/筛选切换后，反复晃动会烦）。
+    两处都用 asChild 直接把动效并到现有节点上，不引入额外包裹 div，布局零影响。
+  */
   return (
-    <div className="grid place-items-center rounded-xl border border-dashed border-black/10 px-6 py-14 text-center dark:border-white/10">
-      {icon && <div className="mb-3 opacity-25">{icon}</div>}
-      <p className="text-sm font-medium">{title}</p>
-      {description && <p className="mt-1.5 max-w-sm text-xs leading-relaxed opacity-55">{description}</p>}
-      {action && <div className="mt-4">{action}</div>}
-    </div>
+    <Fade asChild inView inViewOnce transition={ENTER}>
+      <div className="grid place-items-center rounded-xl border border-dashed border-black/10 px-6 py-14 text-center dark:border-white/10">
+        {icon && (
+          <Zoom asChild inView inViewOnce initialScale={0.9} transition={ENTER}>
+            <div className="mb-3 opacity-25">{icon}</div>
+          </Zoom>
+        )}
+        <p className="text-sm font-medium">{title}</p>
+        {description && <p className="mt-1.5 max-w-sm text-xs leading-relaxed opacity-55">{description}</p>}
+        {action && <div className="mt-4">{action}</div>}
+      </div>
+    </Fade>
   );
 }
 
+/*
+  为什么 Loading 不加入场动效：Spinner 本身就在动，已经表达"正在加载"；
+  再叠一层淡入只是让加载态晚 200ms 才被看清，纯属拖慢感知。
+*/
 export function Loading({ label = "加载中…" }: { label?: string }) {
   return (
     <div className="flex items-center justify-center gap-2 py-14 text-sm opacity-60">
