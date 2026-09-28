@@ -11,7 +11,12 @@ import { cn } from "@/lib/utils";
  *
  * 宽度：`.textfield` 是 flex-col，子元素默认 stretch 就是全宽（原版同款布局）。
  */
-type FieldContextValue = { value: string; onChange: (value: string) => void };
+type FieldContextValue = {
+  value: string;
+  onChange: (value: string) => void;
+  isRequired?: boolean;
+  isInvalid?: boolean;
+};
 const FieldContext = React.createContext<FieldContextValue | null>(null);
 
 export type TextFieldProps = Omit<
@@ -21,21 +26,31 @@ export type TextFieldProps = Omit<
   value: string;
   onChange: (value: string) => void;
   fullWidth?: boolean;
+  /** 必填：给 Label 打上星号（.label--required） */
+  isRequired?: boolean;
+  /** 校验失败：隐藏 Description、给 Label 打上错误态 */
+  isInvalid?: boolean;
 };
 
 export function TextField({
   value,
   onChange,
   fullWidth,
+  isRequired,
+  isInvalid,
   className,
   children,
   ...props
 }: TextFieldProps) {
-  const ctx = React.useMemo(() => ({ value, onChange }), [value, onChange]);
+  const ctx = React.useMemo(
+    () => ({ value, onChange, isRequired, isInvalid }),
+    [value, onChange, isRequired, isInvalid],
+  );
   return (
     <FieldContext.Provider value={ctx}>
       <div
         data-slot="textfield"
+        data-invalid={isInvalid || undefined}
         className={cn("textfield", fullWidth && "textfield--full-width", className)}
         {...props}
       >
@@ -46,8 +61,18 @@ export function TextField({
 }
 
 export function Label({ className, ...props }: React.ComponentProps<"label">) {
+  const ctx = React.use(FieldContext);
   return (
-    <label data-slot="label" className={cn("label", className)} {...props} />
+    <label
+      data-slot="label"
+      className={cn(
+        "label",
+        ctx?.isRequired && "label--required",
+        ctx?.isInvalid && "label--invalid",
+        className,
+      )}
+      {...props}
+    />
   );
 }
 

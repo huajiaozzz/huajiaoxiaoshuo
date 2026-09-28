@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Arc, Chapter, ID } from "@/core";
-import { Button, Card, Chip, Tooltip } from "@heroui/react";
+import { Button, Card, Chip, Tooltip } from "@/components/kit";
 import {
   ChevronDown, ChevronRight, ChevronUp, ChevronsDownUp, GripVertical,
   Layers, Pencil, PenLine, Plus, Trash2,

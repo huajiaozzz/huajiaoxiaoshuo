@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, Card, Chip, Tooltip } from "@heroui/react";
+import { Button, Card, Chip, Tooltip } from "@/components/kit";
 import { BookOpen, Plus, Settings, Trash2 } from "lucide-react";
 import { useOpenSettings } from "@/app/useOpenSettings";
 import { ROUTES } from "@/app/routes";

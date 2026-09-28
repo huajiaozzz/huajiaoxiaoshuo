@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, Card, Chip, Tooltip } from "@heroui/react";
+import { Button, Card, Chip, Tooltip } from "@/components/kit";
 import {
   AlertTriangle, ArrowRight, BookOpen, Feather, FileText, GitBranch, Gauge,
   Layers, Plus, ScrollText, Sparkles, Users, Wand2,

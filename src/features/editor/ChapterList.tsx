@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Chip, Tooltip } from "@heroui/react";
+import { Button, Chip, Tooltip } from "@/components/kit";
 import { ChevronDown, ChevronRight, GripVertical, Plus, Search, Settings2, Trash2 } from "lucide-react";
 import type { Arc, Chapter, ID } from "@/core";
 import { CHAPTER_STATUS_LABEL } from "@/app/theme";

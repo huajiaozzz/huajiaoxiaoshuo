@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Card, Chip, Spinner } from "@heroui/react";
+import { Card, Chip, Spinner } from "@/components/kit";
 import { Check } from "lucide-react";
 import type { IssueSeverity } from "@/core";
 import { AnimatedStatValue } from "@/components/common/AnimatedNumber";

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Button, Card, Chip, Modal } from "@heroui/react";
+import { Button, Card, Chip, Modal } from "@/components/kit";
 import { Plus, Search, Sparkles, Trash2, Users } from "lucide-react";
 import { CastGenDialog } from "./CastGenDialog";
 import type { CharacterRole, ID } from "@/core";
