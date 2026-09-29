@@ -1068,7 +1068,7 @@ function AboutTab() {
         </p>
       </section>
       <section className="rounded-xl border border-black/8 p-4 text-xs leading-relaxed opacity-70 dark:border-white/10">
-        <p>技术栈：React 19 · TypeScript · Tailwind CSS v4 · Vite 8 · 自研 UI Kit（radix-ui + motion）· TipTap 3 · Zustand · Dexie(IndexedDB)</p>
+        <p>技术栈：React 19 · TypeScript · Tailwind CSS v4 · Vite 8 · Animate UI 组件（radix-ui + motion）· TipTap 3 · Zustand · Dexie(IndexedDB)</p>
         <p className="mt-1.5">数据存储：浏览器本地 IndexedDB，支持导出为 JSON 备份；桌面版（Tauri）将改为文件系统存储。</p>
         <p className="mt-1.5">键盘：⌘K 命令面板 · ⌘S 保存 · ⌘J AI 续写 · ⌘⇧F 心流模式 · ⌘, 设置</p>
       </section>

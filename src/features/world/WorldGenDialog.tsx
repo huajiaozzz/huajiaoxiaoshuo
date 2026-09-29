@@ -130,7 +130,9 @@ export function WorldGenDialog({
             </Modal.Header>
 
             <Modal.Body>
-              {askLicense && !gate?.activated && <ActivationRequired gate={gate} title="AI 生成需要授权" />}
+              {askLicense && !gate?.activated && (
+                  <ActivationRequired gate={gate} title="AI 生成需要授权" onNavigate={() => onOpenChange(false)} />
+                )}
               <div className="space-y-3">
                 <div>
                   <p className="mb-1.5 text-xs font-medium">想要什么样的设定（可选）</p>

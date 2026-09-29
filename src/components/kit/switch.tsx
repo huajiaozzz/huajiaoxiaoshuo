@@ -1,4 +1,5 @@
 import * as React from "react";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -42,12 +43,21 @@ function SwitchRoot({
   );
 }
 
-function SwitchContent({ className, children, ...props }: React.ComponentProps<"button">) {
+function SwitchContent({
+  className,
+  children,
+  ...props
+}: Omit<
+  React.ComponentProps<"button">,
+  "onAnimationStart" | "onAnimationEnd" | "onAnimationIteration" | "onDragStart" | "onDragEnd" | "onDrag" | "onTransitionEnd"
+>) {
   const ctx = React.use(SwitchContext);
   return (
-    <button
+    <motion.button
       type="button"
       role="switch"
+      whileTap={{ scale: 0.96 }}
+      transition={{ type: "spring", stiffness: 520, damping: 24 }}
       aria-checked={ctx?.isSelected ?? false}
       data-slot="switch-content"
       className={cn("switch__content", className)}
@@ -55,7 +65,7 @@ function SwitchContent({ className, children, ...props }: React.ComponentProps<"
       {...props}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
 

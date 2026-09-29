@@ -240,7 +240,7 @@ export function SelectChip({
       onClick={onPress}
       className={"transition active:scale-95 " + (className ?? "")}
     >
-      <Chip size="sm" color={selected ? color : "default"} className={selected ? "chip--selected" : undefined}>
+      <Chip size="sm" color={selected ? color : "default"} isSelected={selected} className={selected ? "chip--selected" : undefined}>
         {selected && <Check className="mr-0.5 inline size-3" />}
         {children}
       </Chip>

@@ -13,10 +13,13 @@ export function ActivationRequired({
   gate,
   title = "需要授权后才能创作",
   hint,
+  onNavigate,
 }: {
   gate?: GateStatus | null;
   title?: string;
   hint?: string;
+  /** 跳转前调用（弹窗里用它先关掉自己，免得授权页被盖在弹窗底下） */
+  onNavigate?: () => void;
 }) {
   const navigate = useNavigate();
   const detail = hint ?? gate?.message ?? "填一张授权码激活本机，即可继续创作。";
@@ -29,7 +32,14 @@ export function ActivationRequired({
           <p className="text-sm font-medium">{title}</p>
           <p className="text-xs leading-relaxed opacity-70">{detail}</p>
           <div className="flex flex-wrap gap-2 pt-0.5">
-            <Button size="sm" variant="outline" onPress={() => navigate(ROUTES.settingsSection("license"))}>
+            <Button
+              size="sm"
+              variant="outline"
+              onPress={() => {
+                onNavigate?.();
+                navigate(ROUTES.settingsSection("license"));
+              }}
+            >
               <KeyRound className="mr-1 inline size-3.5" />
               去激活
             </Button>

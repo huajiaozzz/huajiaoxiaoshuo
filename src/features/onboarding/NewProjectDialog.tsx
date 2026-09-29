@@ -143,6 +143,7 @@ export function NewProjectDialog() {
                   gate={gate}
                   title="AI 功能需要授权"
                   hint="填一张授权码即可用 AI 建档 / 生成选题；空白项目随时可以建。"
+                  onNavigate={() => setOpen(false)}
                 />
               )}
               <div className="space-y-5">

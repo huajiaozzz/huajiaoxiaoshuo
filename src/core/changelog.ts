@@ -59,7 +59,7 @@ export const CHANGELOG: Release[] = [
       {
         kind: "fixed",
         items: [
-          "更新日志里的**加粗**以前会显示成星号，现在按加粗渲染。",
+          "更新日志里的**加粗**以前会显示成星号，现在按加粗渲染；「关于」页的技术栈也改成实际在用的 **Animate UI**（HeroUI 已全部移除）。",
         ],
       },
     ],

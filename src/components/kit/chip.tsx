@@ -1,4 +1,5 @@
 import * as React from "react";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -19,11 +20,17 @@ const CHIP_COLOR_CLASS: Record<string, string | undefined> = {
   danger: "chip--danger",
 };
 
-export type ChipProps = React.ComponentProps<"span"> & {
+// motion 组件的事件签名与原生 span 的重名（onAnimationStart 等），先剔掉再扩展
+export type ChipProps = Omit<
+  React.ComponentProps<"span">,
+  "onAnimationStart" | "onAnimationEnd" | "onAnimationIteration" | "onDragStart" | "onDragEnd" | "onDrag" | "onTransitionEnd"
+> & {
   /** 默认/强调/成功/警告/危险；其它值（如 "info"）静默降级为无色 */
   color?: string;
   size?: "sm" | "md" | "lg";
   variant?: "primary" | "secondary" | "soft" | "tertiary";
+  /** 选中态（动画用；不传则看 className 里有没有 chip--selected） */
+  isSelected?: boolean;
 };
 
 export function Chip({
@@ -31,12 +38,16 @@ export function Chip({
   size,
   variant = "secondary",
   className,
+  isSelected,
   children,
   ...props
 }: ChipProps) {
   return (
-    <span
+    <motion.span
       data-slot="chip"
+      whileTap={{ scale: 0.94 }}
+      animate={{ scale: isSelected ?? className?.includes("chip--selected") ? 1.04 : 1 }}
+      transition={{ type: "spring", stiffness: 520, damping: 20 }}
       className={cn(
         "chip",
         `chip--${variant}`,
@@ -51,6 +62,6 @@ export function Chip({
       ) : (
         children
       )}
-    </span>
+    </motion.span>
   );
 }
