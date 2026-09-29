@@ -4,11 +4,12 @@ import { Button, Card, Chip } from "@/components/kit";
 import {
   AlertTriangle, ArrowUpRight, Ban, BookOpen, Hammer, ListChecks, Play, Settings2, ShieldCheck, Sparkles, Waves, Zap,
 } from "lucide-react";
-import type { Chapter, ID, Issue } from "@/core";
+import type { Chapter, ID, Issue, IssueSeverity } from "@/core";
 import {
   checkConsistency, checkVoice, fullChapterReview, localAudit, persistLocalAudit,
   type ConsistencyOutput,
 } from "@/ai/analysis";
+import { decideLaya, layaSettings } from "@/ai/laya";
 import { upsertIssue } from "@/db/repo/story";
 import { EmptyHint, Loading, Progress, SectionTitle, SeverityChip } from "@/components/common/ui";
 import { AnimatedNumber } from "@/components/common/AnimatedNumber";
@@ -203,19 +204,38 @@ export function RunChecks({ projectId, chapters }: { projectId: ID; chapters: Ch
         return;
       }
       const created: Issue[] = [];
-      for (const d of res.deviations) {
+      // Laya 开着就让它逐条定级（台词走样多严重，本地模型一句话的事）；
+      // 没开或失败就沿用原来的固定 warn —— 页面行为完全不变。
+      const layOn = layaSettings().enabled;
+      const severities = new Map<number, IssueSeverity>();
+      if (layOn) {
+        await Promise.all(res.deviations.map(async (d, i) => {
+          const r = await decideLaya<{ severity?: string }>(
+            { character: d.character, quote: d.quote, why: d.why },
+            {
+              type: "object",
+              properties: { severity: { type: "string", enum: ["info", "warn", "error", "blocker"] } },
+              required: ["severity"],
+            },
+          );
+          const s = r?.severity;
+          if (s === "info" || s === "warn" || s === "error" || s === "blocker") severities.set(i, s);
+        }));
+      }
+      for (let i = 0; i < res.deviations.length; i++) {
+        const d = res.deviations[i];
         created.push(
           await upsertIssue({
             projectId,
             chapterId,
             kind: "character-voice",
-            severity: "warn",
+            severity: severities.get(i) ?? "warn",
             title: d.character + " 的台词不像他本人",
             detail: d.why,
             evidence: { quote: d.quote },
             suggestion: d.suggested,
             source: "llm",
-            detector: "llm-voice",
+            detector: layOn && severities.has(i) ? "laya-voice" : "llm-voice",
           }),
         );
       }

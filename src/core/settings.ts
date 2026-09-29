@@ -59,6 +59,8 @@ export interface AppSettings {
   semanticRecall?: SemanticRecallSettings;
   // ---------- OpenViking 增强召回（可选，默认关闭） ----------
   viking?: VikingSettings;
+  // ---------- Laya 本地决策模型（可选，默认关闭） ----------
+  laya?: LayaSettings;
 }
 
 /** 向量来源：本地 Ollama，或任意 OpenAI 兼容的 /embeddings 端点 */
@@ -124,6 +126,31 @@ export function resolveViking(settings?: Partial<AppSettings> | null): VikingSet
     ...DEFAULT_VIKING,
     ...(raw ?? {}),
     endpoint: (raw?.endpoint ?? '').trim() || DEFAULT_VIKING.endpoint,
+  };
+}
+
+// ---------- Laya 本地决策模型（可选，默认关闭） ----------
+export interface LayaSettings {
+  /**
+   * 默认 false。Laya 是跑在本机的决策模型（需另行启动 scripts/laya-bridge.py），
+   * 没开就完全不碰它 —— 相关判定走原来的固定值。
+   */
+  enabled: boolean;
+  /** 桥接服务地址，默认本地 1945 端口 */
+  endpoint: string;
+}
+
+export const DEFAULT_LAYA: LayaSettings = {
+  enabled: false,
+  endpoint: 'http://127.0.0.1:1945',
+};
+
+export function resolveLaya(settings?: Partial<AppSettings> | null): LayaSettings {
+  const raw = (settings as { laya?: Partial<LayaSettings> } | null)?.laya;
+  return {
+    ...DEFAULT_LAYA,
+    ...(raw ?? {}),
+    endpoint: (raw?.endpoint ?? '').trim() || DEFAULT_LAYA.endpoint,
   };
 }
 

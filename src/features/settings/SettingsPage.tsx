@@ -5,7 +5,8 @@ import { ArrowLeft, Brain, Check, Eraser, Eye, EyeOff, Fingerprint, Gauge, Globe
 import { AnimatePresence, type Transition } from "motion/react";
 import { Fade } from "@/components/animate-ui/primitives/effects/fade";
 import { Zoom } from "@/components/animate-ui/primitives/effects/zoom";
-import type { AiTaskKind, ProviderConfig, ProviderKind, TaskRouting } from "@/core";
+import type { AiTaskKind, LayaSettings, ProviderConfig, ProviderKind, TaskRouting } from "@/core";
+import { resolveLaya } from "@/core";
 import { useAppStore } from "@/app/store";
 import { ROUTES } from "@/app/routes";
 import { useAsync } from "@/app/hooks";
@@ -30,6 +31,7 @@ import { ActivationPanel } from "@/features/license/ActivationPanel";
 import { SETTINGS_SECTIONS, type SettingsSection } from "@/app/routes";
 import { ModelSelect } from "@/components/common/ModelSelect";
 import { APP_VERSION } from "@/core";
+import { lastLayaError, probeLaya } from "@/ai/laya";
 
 type Tab = SettingsSection | "memory";
 
@@ -945,7 +947,74 @@ function PrivacyTab() {
         <h2 className="text-sm font-semibold">上下文估算器</h2>
         <ContextEstimator />
       </section>
+
+      <LayaSection settings={settings} updateSettings={updateSettings} />
     </div>
+  );
+}
+
+function LayaSection({
+  settings, updateSettings,
+}: {
+  settings: { laya?: LayaSettings };
+  updateSettings: (patch: { laya?: LayaSettings }) => void;
+}) {
+  const notify = useAppStore((s) => s.notify);
+  const vk = resolveLaya(settings);
+  const [testing, setTesting] = useState(false);
+  const patch = (p: Partial<LayaSettings>) => updateSettings({ laya: { ...vk, ...p } });
+
+  const runProbe = async () => {
+    setTesting(true);
+    try {
+      const res = await probeLaya({ ...vk });
+      notify(res.ok ? "success" : "warning", res.ok ? "Laya 决策服务可用" : "Laya 不可用", res.message);
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-semibold">Laya 本地决策模型（可选）</h2>
+          <p className="mt-1 text-xs leading-relaxed opacity-65">
+            Laya 是跑在本机的决策模型：不写文章，只做判断 —— 比如口吻检查里"这句台词走样有多严重"，
+            开启后由它逐条定级（info / warn / error / blocker），关着则统一记 warn。
+          </p>
+          <p className="mt-1 text-xs leading-relaxed opacity-65">
+            需要你先在本机起桥接服务（`python scripts/laya-bridge.py`，用装有 laya 的 Python，
+            默认地址就是下面的 1945 端口）。没起、连不上 —— 判定自动退回固定值，
+            检查本身不受影响。判定时只发送问题描述，不含正文。
+          </p>
+        </div>
+        <Switch isSelected={vk.enabled} onChange={(v) => patch({ enabled: v })}>
+          <Switch.Content>
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch.Content>
+        </Switch>
+      </div>
+      <div className={"mt-3 flex flex-wrap items-center gap-2 " + (vk.enabled ? "" : "opacity-50")}>
+        <label className="flex items-center gap-1 text-[11px] opacity-70">
+          服务地址
+          <input
+            value={vk.endpoint}
+            onChange={(e) => patch({ endpoint: e.target.value })}
+            placeholder="http://127.0.0.1:1945"
+            className="w-52 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
+          />
+        </label>
+        <Button size="sm" variant="outline" isPending={testing} onPress={() => void runProbe()}>
+          测试连接
+        </Button>
+      </div>
+      {lastLayaError() ? (
+        <p className="mt-1 text-[10px] leading-relaxed opacity-50">上次调用失败：{lastLayaError()}</p>
+      ) : null}
+    </section>
   );
 }
 
