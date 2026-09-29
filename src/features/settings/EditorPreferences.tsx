@@ -4,6 +4,7 @@ import { useAppStore } from "@/app/store";
 import { DEFAULT_SETTINGS } from "@/db/repo/settings";
 import { CHINESE_FONT_SIZES, EDITOR_FONT_STACK } from "@/app/theme";
 import { THEMES, type Theme } from "@/core";
+import { resolveAutoExtract } from "@/core";
 
 const THEME_LABEL: Record<Theme, string> = {
   light: "浅色",
@@ -18,6 +19,7 @@ export function EditorPreferences() {
   const settings = useAppStore((s) => s.settings);
   const updateSettings = useAppStore((s) => s.updateSettings);
   const notify = useAppStore((s) => s.notify);
+  const autoExtract = resolveAutoExtract(settings);
 
   return (
     <div className="space-y-5">
@@ -127,6 +129,34 @@ export function EditorPreferences() {
               className="tabular mt-1 w-full rounded-lg border border-black/10 bg-transparent px-2 py-1.5 text-sm dark:border-white/15"
             />
           </label>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
+        <h2 className="text-sm font-semibold">保存后自动抽取</h2>
+        <div className="mt-3 space-y-3">
+          <ToggleRow
+            label="自动识别并入库"
+            hint="自动保存后，把新增的人物、世界观、伏笔、时间线抽出来入库；失败时静默跳过，不打断写作"
+            value={autoExtract.enabled}
+            onChange={(v) => updateSettings({ autoExtract: { ...autoExtract, enabled: v } })}
+          />
+          <label className="block text-xs opacity-70">
+            新增多少字跑一次
+            <input
+              type="number"
+              min={200}
+              max={10000}
+              step={100}
+              value={autoExtract.minNewWords}
+              onChange={(e) => updateSettings({ autoExtract: { ...autoExtract, minNewWords: Math.max(200, Number(e.target.value) || 800) } })}
+              className="tabular mt-1 w-full rounded-lg border border-black/10 bg-transparent px-2 py-1.5 text-sm dark:border-white/15"
+            />
+          </label>
+          <p className="text-[11px] leading-relaxed opacity-50">
+            新人物自动建卡（带"自动抽取"标记）、地点组织类名词自动建世界观条目、
+            伏笔自动记一笔、出场自动补上。15 分钟内只跑一次；每次调用走正常 AI 计费。
+          </p>
         </div>
       </section>
 

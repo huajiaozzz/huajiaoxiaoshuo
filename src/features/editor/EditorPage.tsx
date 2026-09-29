@@ -17,6 +17,7 @@ import {
   restoreSnapshot, saveChapterContent, updateChapter,
 } from "@/db/repo/outline";
 import { endSession, logPomodoro, startSession, updateSession } from "@/db/repo/writing";
+import { maybeAutoExtract } from "@/ai/auto-extract";
 import { useEditorStore } from "./editorStore";
 import { EditorCanvas, type EditorCanvasHandle } from "./EditorCanvas";
 import { ChapterList } from "./ChapterList";
@@ -351,6 +352,8 @@ export function EditorPage() {
       lastSavedRef.current = { chapterId: cid, html };
       state.markSaved(res.words);
       if (reason === "manual") notify("success", "已保存", formatWords(res.words));
+      // 自动保存后顺手抽取：新增人物 / 世界观 / 伏笔自己入库（节流 + 静默失败，见 maybeAutoExtract）
+      if (reason === "auto") void maybeAutoExtract(projectId, cid, notify);
       if (state.session) {
         void updateSession(state.session.id, {
           wordsAdded: Math.max(0, res.words - initialWords.current),

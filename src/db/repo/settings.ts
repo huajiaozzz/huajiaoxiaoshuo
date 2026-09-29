@@ -1,7 +1,7 @@
 import type { AppSettings, ID, ModelPricing, ProviderConfig, TaskRouting } from '@/core';
 import { db } from '../database';
 import { DEFAULT_PARAMS, PROVIDER_PRESETS, defaultRouting } from '../defaults';
-import { DEFAULT_SEMANTIC_RECALL, THEMES } from '@/core';
+import { DEFAULT_AUTO_EXTRACT, DEFAULT_SEMANTIC_RECALL, THEMES } from '@/core';
 import { isProviderUsable } from '@/ai/providers';
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   globalForbidden: [],
   globalInstructions: undefined,
   semanticRecall: { ...DEFAULT_SEMANTIC_RECALL },
+  autoExtract: { ...DEFAULT_AUTO_EXTRACT },
 };
 
 /** 设置存 localStorage（非作品数据，不需要进 IndexedDB） */

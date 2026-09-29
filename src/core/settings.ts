@@ -61,6 +61,8 @@ export interface AppSettings {
   viking?: VikingSettings;
   // ---------- Laya 本地决策模型（可选，默认关闭） ----------
   laya?: LayaSettings;
+  // ---------- 保存后自动抽取（默认开启） ----------
+  autoExtract?: AutoExtractSettings;
 }
 
 /** 向量来源：本地 Ollama，或任意 OpenAI 兼容的 /embeddings 端点 */
@@ -126,6 +128,31 @@ export function resolveViking(settings?: Partial<AppSettings> | null): VikingSet
     ...DEFAULT_VIKING,
     ...(raw ?? {}),
     endpoint: (raw?.endpoint ?? '').trim() || DEFAULT_VIKING.endpoint,
+  };
+}
+
+// ---------- 保存后自动抽取（默认开启） ----------
+export interface AutoExtractSettings {
+  /**
+   * 默认 true。写完章节不用再去点"抽取"：自动保存后，后台把新增的人物、
+   * 世界观、伏笔、时间线抽出来入库。关掉就回到纯手动（时间线页的抽取弹窗还在）。
+   */
+  enabled: boolean;
+  /** 自上次抽取新增多少字才跑一次，避免写两句就调一次模型 */
+  minNewWords: number;
+}
+
+export const DEFAULT_AUTO_EXTRACT: AutoExtractSettings = {
+  enabled: true,
+  minNewWords: 800,
+};
+
+export function resolveAutoExtract(settings?: Partial<AppSettings> | null): AutoExtractSettings {
+  const raw = (settings as { autoExtract?: Partial<AutoExtractSettings> } | null)?.autoExtract;
+  return {
+    ...DEFAULT_AUTO_EXTRACT,
+    ...(raw ?? {}),
+    minNewWords: raw?.minNewWords && raw.minNewWords > 0 ? Math.min(raw.minNewWords, 10000) : DEFAULT_AUTO_EXTRACT.minNewWords,
   };
 }
 
