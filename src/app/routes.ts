@@ -12,6 +12,7 @@ export const ROUTES = {
   threads: (id: string) => `/p/${id}/threads`,
   timeline: (id: string) => `/p/${id}/timeline`,
   graph: (id: string) => `/p/${id}/graph`,
+  knowledge: (id: string) => `/p/${id}/knowledge`,
   insights: (id: string) => `/p/${id}/insights`,
   consistency: (id: string) => `/p/${id}/consistency`,
   review: (id: string) => `/p/${id}/review`,

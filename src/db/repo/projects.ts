@@ -112,7 +112,7 @@ export async function deleteProject(id: ID): Promise<void> {
       db.entities, db.entityMentions, db.plotThreads, db.timelineEvents, db.glossary, db.rules,
       db.issues, db.metrics, db.styles, db.goals, db.sessions, db.pomodoros, db.aiSessions,
       db.generations, db.suggestions, db.embeddings, db.feedback, db.genesis, db.appState,
-      db.memory, db.memoryUsage, db.blueprints,
+      db.memory, db.memoryUsage, db.blueprints, db.knowledgePages,
     ],
     async () => {
       // appearances 没有 projectId 索引，必须在 characters 还在时先收集主键并删除
@@ -126,7 +126,7 @@ export async function deleteProject(id: ID): Promise<void> {
         db.worldEntries, db.factions, db.entities, db.entityMentions, db.plotThreads,
         db.timelineEvents, db.glossary, db.rules, db.issues, db.metrics, db.styles, db.goals,
         db.sessions, db.pomodoros, db.aiSessions, db.generations, db.suggestions, db.embeddings,
-        db.feedback, db.genesis, db.memory, db.memoryUsage, db.blueprints,
+        db.feedback, db.genesis, db.memory, db.memoryUsage, db.blueprints, db.knowledgePages,
       ];
       for (const table of byProject) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

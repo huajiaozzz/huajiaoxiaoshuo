@@ -1,7 +1,7 @@
 import Dexie from 'dexie';
 import type { AppState } from '@/core';
 import { DB_NAME, DB_STORES, DB_VERSION, type HuaJiaoDB } from './schema';
-import { V1_STORES, V2_STORES, V3_STORES, V4_STORES, V5_STORES } from './v1-stores';
+import { V1_STORES, V2_STORES, V3_STORES, V4_STORES, V5_STORES, V6_STORES } from './v1-stores';
 
 /**
  * 用声明合并把 HuaJiaoDB 的表定义挂到 Dexie 实例上：
@@ -16,6 +16,7 @@ class Database extends Dexie {
     // v4：新增 memoryUsage（记忆效果追踪：哪次生成用了哪些记忆）
     // v5：新增 blueprints（拆书蓝图：技法层 + 内容层 + 参考原文）
     // v6：新增 licenses（授权状态：设备线 / 域名线各一条）
+    // v7：新增 knowledgePages（知识页：按主题自动组装的 condensed 页面）
     // 每个版本都必须声明"当时的完整结构"，不能直接复用最新的一份，
     // 否则 Dexie 做版本 diff 时会算错增删，破坏老库升级。
     this.version(1).stores(V1_STORES as unknown as Record<string, string>);
@@ -23,6 +24,7 @@ class Database extends Dexie {
     this.version(3).stores(V3_STORES as unknown as Record<string, string>);
     this.version(4).stores(V4_STORES as unknown as Record<string, string>);
     this.version(5).stores(V5_STORES as unknown as Record<string, string>);
+    this.version(6).stores(V6_STORES as unknown as Record<string, string>);
     this.version(DB_VERSION).stores(DB_STORES as unknown as Record<string, string>);
   }
 }

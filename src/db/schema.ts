@@ -5,7 +5,7 @@ import type {
   GlossaryTerm, Issue, PlotThread, PomodoroRecord, Project, PromptTemplate, ProviderConfig,
   Relationship, Snapshot, StyleFingerprint, TaskRouting, TimelineEvent, WritingGoal, WritingSession,
   WorldEntry, OutlineNode, GenesisRun, ModelPricing, ChapterComment, ReviewSuggestion, MemoryFact,
-  MemoryUsage, BlueprintRecord,
+  MemoryUsage, BlueprintRecord, KnowledgePage,
 } from '@/core';
 // 授权状态（本机一条记录：设备授权码）。类型只在这里被「类型引用」，运行时来自 src/license。
 import type { DeviceLicenseRecord } from '@/license/types';
@@ -54,12 +54,14 @@ export interface HuaJiaoDB {
   genesis: EntityTable<GenesisRun, 'id'>;
   /** 授权状态（v6 新增）：id = "device"（授权码线；当前只用这一条） */
   licenses: EntityTable<DeviceLicenseRecord, 'id'>;
+  /** 知识页（v7 新增）：按主题自动组装的 condensed 页面 */
+  knowledgePages: EntityTable<KnowledgePage, 'id'>;
 }
 
 /** Dexie 版本定义。加表/加索引时 append 新版本，不要改旧版本。 */
 export const DB_NAME = 'huajiao-writer';
 
-export const DB_VERSION = 6;
+export const DB_VERSION = 7;
 
 export const DB_STORES = {
   projects: 'id, title, status, updatedAt, createdAt',
@@ -104,6 +106,8 @@ export const DB_STORES = {
   genesis: 'id, projectId, status, createdAt',
   // 授权状态：本机一条记录（id = device），没有项目维度，所以不参与级联删除
   licenses: 'id, kind, updatedAt',
+  // 知识页：按项目 + 种类取，一种一页
+  knowledgePages: 'id, projectId, [projectId+kind]',
 } as const;
 
 export type StoreName = keyof typeof DB_STORES;

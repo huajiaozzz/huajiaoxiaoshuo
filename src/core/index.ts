@@ -7,6 +7,7 @@ export * from './review';
 export * from './memory';
 export * from './blueprint';
 export * from './memory-conflict';
+export * from './knowledge';
 export * from './changelog';
 export * from './ai';
 export * from './settings';

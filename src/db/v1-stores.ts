@@ -90,3 +90,11 @@ export const V5_STORES = {
   ...V4_STORES,
   blueprints: 'id, projectId, sourceTitle, createdAt',
 } as const;
+
+/**
+ * Dexie v6 的表结构快照（新增 licenses）。
+ */
+export const V6_STORES = {
+  ...V5_STORES,
+  licenses: 'id, kind, updatedAt',
+} as const;

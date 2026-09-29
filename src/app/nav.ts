@@ -1,5 +1,5 @@
 import {
-  BookOpen, Boxes, Compass, Gauge, GitBranch, Layers, LayoutDashboard, Network,
+  BookOpen, Boxes, Compass, FileText, Gauge, GitBranch, Layers, LayoutDashboard, Network,
   ScrollText, Sparkles, Settings, Upload, Users, Wand2, Clock, ScanEye, BookMarked,
 } from "lucide-react";
 import { ROUTES } from "./routes";
@@ -22,6 +22,7 @@ export const ROUTE_PAGES: NavItem[] = [
   { key: "threads", label: "伏笔支线", icon: GitBranch, to: ROUTES.threads, group: "world" },
   { key: "timeline", label: "时间线", icon: Clock, to: ROUTES.timeline, group: "world" },
   { key: "graph", label: "关系图谱", icon: Network, to: ROUTES.graph, group: "world" },
+  { key: "knowledge", label: "知识页", icon: FileText, to: ROUTES.knowledge, group: "world" },
   { key: "insights", label: "写作分析", icon: Gauge, to: ROUTES.insights, group: "ai" },
   { key: "consistency", label: "一致性检查", icon: ScrollText, to: ROUTES.consistency, group: "ai" },
   { key: "review", label: "审稿台", icon: ScanEye, to: ROUTES.review, group: "ai", shortcut: "G R" },

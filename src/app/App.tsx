@@ -22,6 +22,7 @@ import { WorldPage } from "@/features/world/WorldPage";
 import { ThreadsPage } from "@/features/threads/ThreadsPage";
 import { TimelinePage } from "@/features/timeline/TimelinePage";
 import { GraphPage } from "@/features/graph/GraphPage";
+import { KnowledgePage } from "@/features/knowledge/KnowledgePage";
 import { InsightsPage } from "@/features/insights/InsightsPage";
 import { ConsistencyPage } from "@/features/consistency/ConsistencyPage";
 import { AiStudioPage } from "@/features/ai/AiStudioPage";
@@ -138,6 +139,7 @@ export default function App() {
           <Route path="threads" element={<ThreadsPage />} />
           <Route path="timeline" element={<TimelinePage />} />
           <Route path="graph" element={<GraphPage />} />
+          <Route path="knowledge" element={<KnowledgePage />} />
           <Route path="insights" element={<InsightsPage />} />
           <Route path="consistency" element={<ConsistencyPage />} />
           <Route path="review" element={<ReviewPage />} />
