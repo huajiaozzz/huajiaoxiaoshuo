@@ -4,8 +4,8 @@ import {
   Brain, Check, Lightbulb, Pin, PinOff, Plus, RefreshCw, Sparkles, Trash2,
   EyeOff, Eye, AlertTriangle, BookMarked, Quote, GitMerge, X, Radar,
 } from "lucide-react";
-import type { ID, MemoryEffect, MemoryFact, MemoryKind, ProviderConfig, SemanticRecallSettings, VikingSettings } from "@/core";
-import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall, resolveViking } from "@/core";
+import type { ID, MemoryEffect, MemoryFact, MemoryKind, ProviderConfig, SemanticRecallSettings, VikingSettings, LayaSettings } from "@/core";
+import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall, resolveViking, resolveLaya } from "@/core";
 import { useAppStore } from "@/app/store";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -16,6 +16,7 @@ import {
 } from "@/db/repo/memory";
 import { listProviders } from "@/db/repo/settings";
 import { lastEmbeddingError, probeEmbedding } from "@/ai/embedding";
+import { lastLayaError, probeLaya } from "@/ai/laya";
 import { lastVikingError, probeViking } from "@/ai/viking";
 import { EmbeddingModelPicker } from "./EmbeddingModelPicker";
 import { ModelSelect, looksLikeEmbeddingModel } from "@/components/common/ModelSelect";
@@ -654,8 +655,8 @@ function ConflictSide({ label, text }: { label: string; text: string }) {
 function SemanticRecallSection({
   settings, updateSettings, notify,
 }: {
-  settings: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings };
-  updateSettings: (patch: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings }) => void;
+  settings: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; laya?: LayaSettings };
+  updateSettings: (patch: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; laya?: LayaSettings }) => void;
   notify: (kind: "info" | "success" | "warning" | "danger", text: string, detail?: string) => void;
 }) {
   const recall = resolveSemanticRecall(settings);
@@ -809,6 +810,7 @@ function SemanticRecallSection({
           </p>
         )}
         <VikingSection settings={settings} updateSettings={updateSettings} notify={notify} />
+        <LayaSection settings={settings} updateSettings={updateSettings} notify={notify} />
       </div>
     </section>
   );
@@ -885,6 +887,70 @@ function VikingSection({
       </div>
       {lastVikingError() ? (
         <p className="mt-1 text-[10px] leading-relaxed opacity-50">上次调用失败：{lastVikingError()}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function LayaSection({
+  settings, updateSettings, notify,
+}: {
+  settings: { laya?: LayaSettings };
+  updateSettings: (patch: { laya?: LayaSettings }) => void;
+  notify: (kind: "info" | "success" | "warning" | "danger", text: string, detail?: string) => void;
+}) {
+  const ly = resolveLaya(settings);
+  const [testing, setTesting] = useState(false);
+  const patch = (p: Partial<LayaSettings>) => updateSettings({ laya: { ...ly, ...p } });
+
+  const runProbe = async () => {
+    setTesting(true);
+    try {
+      const res = await probeLaya({ ...ly });
+      notify(res.ok ? "success" : "warning", res.ok ? "Laya 决策服务可用" : "Laya 不可用", res.message);
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 rounded-lg border border-black/8 p-3 dark:border-white/10">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium">Laya 本地决策模型（可选）</p>
+        <Switch isSelected={ly.enabled} onChange={(v) => patch({ enabled: v })}>
+          <Switch.Content>
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+            {ly.enabled ? "已启用" : "未启用"}
+          </Switch.Content>
+        </Switch>
+      </div>
+      <p className="mt-1.5 text-[11px] leading-relaxed opacity-65">
+        Laya 是跑在本机的决策模型：不写文章，只做判断 —— 比如口吻检查里"这句台词走样有多严重"，
+        开启后由它逐条定级（info / warn / error / blocker），关着则统一记 warn。
+      </p>
+      <p className="mt-1 text-[11px] leading-relaxed opacity-65">
+        需要你先在本机起桥接服务（`python scripts/laya-bridge.py`，用装有 laya 的 Python，
+        默认地址就是下面的 1945 端口）。没起、连不上 —— 判定自动退回固定值，检查本身不受影响。
+        判定时只发送问题描述，不含正文。
+      </p>
+      <div className={"mt-2 flex flex-wrap items-center gap-2 " + (ly.enabled ? "" : "opacity-50")}>
+        <label className="flex items-center gap-1 text-[11px] opacity-70">
+          服务地址
+          <input
+            value={ly.endpoint}
+            onChange={(e) => patch({ endpoint: e.target.value })}
+            placeholder="http://127.0.0.1:1945"
+            className="w-52 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
+          />
+        </label>
+        <Button size="sm" variant="outline" isPending={testing} onPress={() => void runProbe()}>
+          测试连接
+        </Button>
+      </div>
+      {lastLayaError() ? (
+        <p className="mt-1 text-[10px] leading-relaxed opacity-50">上次调用失败：{lastLayaError()}</p>
       ) : null}
     </div>
   );
