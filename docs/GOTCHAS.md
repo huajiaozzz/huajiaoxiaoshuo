@@ -1,5 +1,10 @@
 # 已知陷阱与规避方式
 
+> **关于文中 HeroUI 的段落**：HeroUI v3 已于 0.10.0 全部移除（依赖与引用清零），
+> 现在的组件层是 **Animate UI 原语 + 自研 `src/components/kit`**（API 刻意沿用旧约定，
+> `onPress` / `isPending` / `Modal.Backdrop` 这些写法不变）。下面带 HeroUI 的段落分两类：
+> 讲**历史弯路**的原样保留（当时的推演是真发生过的），讲**现行约定**的已改写到 kit 语境。
+
 ## 元组解构：错的不是编译器，是解构的元素个数
 
 > 这一条曾经被误诊为「TypeScript 6.0.3 编译器的缺陷」并写进了文档与提交信息。
@@ -37,21 +42,21 @@ res.reload();
 - `db.transaction('rw', t1, t2, cb)` 必须传数组：`db.transaction('rw', [t1, t2], cb)`。
 - 复合主键表（CharacterAppearance）的实体类型要显式声明 `id` 并在写入时构造。
 
-## HeroUI v3
-- 没有 `asChild`（v3-beta.3 起移除）；用 `onPress` + `useNavigate()`。
-- 没有 `onClick`，一律 `onPress`；禁用 `isDisabled`；加载 `isPending`。
-- Tooltip 没有 `content` 属性，用 `<Tooltip.Trigger> + <Tooltip.Content>`。
-- 不需要 Provider；样式靠 `@import "@heroui/styles"`，必须在 `@import "tailwindcss"` 之后。
+## UI 组件层（Animate UI + 自研 kit；原 HeroUI）
+
+> HeroUI 已移除，但 `src/components/kit` **刻意沿用它的 API 约定**，所以下面这些写法照旧有效；
+> 样式规格在 `src/styles/kit`（自有的 CSS），行为层是 Animate UI 原语（Radix 弹窗、动画气泡/按钮）。
+
+- 没有 `asChild`；用 `onPress` + `useNavigate()`（`onClick` 也收，但项目统一 `onPress`）。
+- 禁用 `isDisabled`；加载 `isPending`（不可再点 + `data-pending` 走 status-pending 样式）。
+- Tooltip 没有 `content` 属性，用 `<Tooltip.Trigger> + <Tooltip.Content>`（`delay` / `closeDelay` 语义与原版一致）。
 - 主色通过覆盖 CSS 变量 `--accent` / `--accent-foreground` 定制（见 globals.css）。
-- **不要用 `<Tabs.Indicator/>`**：它会抛 `SharedElement must be rendered inside a SharedElementTransition`
-  并导致整页白屏，而 `@heroui/react` 内部没有任何组件提供该 context。
-  Tabs 只用 `Tabs.List + Tabs.Tab + Tabs.Panel` 即可（本项目所有 Tabs 都遵循此约定）。
-- 复杂表单可以直接用原生 `<input>` / `<select>` / `<textarea>` 配 Tailwind，不必强行套 HeroUI 组件。
+- **标签页用 `SlidingTabs`（src/components/common/SlidingTabs.tsx）**：带滑动指示器、ARIA 键盘导航；
+  分段切换（视图切换器）用 `SegmentedControl`。别再手写选中药丸 —— 老的
+  `Tabs.Indicator` 白屏坑随 HeroUI 一起退役了。
+- 复杂表单可以直接用原生 `<input>` / `<select>` / `<textarea>` 配 Tailwind，不必强行套组件。
 - **`Card` 自带卡片布局样式**：把 `flex` / `grid` 之类的布局类直接写在 `<Card>` 上往往不生效，
   正确做法是 `<Card><div className="flex ...">…</div></Card>`。Card 只当容器用。
-- 分段切换（视图/tab 之类的切换器）本项目统一用**原生 button + Tailwind** 实现，
-  不用 `Tabs`：一是 `Tabs.Indicator` 会崩（见上），二是 HeroUI Tabs 的默认样式会把少量 Tab 拉满整行，观感差。
-  需要真 Tabs 语义时用 `Tabs.List + Tabs.Tab + Tabs.Panel`。
 
 ## Tailwind v4
 - 重要修饰符后置：`bg-red-500!`（不是 `!bg-red-500`）。
@@ -127,17 +132,18 @@ DeepSeek V4 系列（`deepseek-flash` / `deepseek-v4-pro`）是**推理模型**�
 - 不要用 `bash` 里的 `cat > file <<'EOF'` 写含反引号的 TS 文件：多层级转义容易静默损坏源码。
   需要写长文件时用 write 工具，或先写 `.mjs` 生成脚本再执行。
 
-## HeroUI v3 的 TextArea 默认不是全宽的
+## 输入框默认不全宽（原 HeroUI TextArea；kit 沿用同类名，此约定仍有效）
 
 **现象**：侧栏里的输入框只有 161px 宽，文字挤成三行还被裁掉。项目里 19 处 TextArea 全是这样。
 
-**真因**：HeroUI 的基础类 .textarea 是 display: inline-block 且**没有 width**，
+**真因**：基础类 .textarea 是 display: inline-block 且**没有 width**，
 宽度由浏览器按 textarea 默认的 cols≈20 算出固有宽度。全宽是**单独的修饰类**
 .textarea--full-width { @apply w-full }，基础类不含它。
 
 **修法**：在 globals.css 里用 :where(.textarea) 统一补 display:block; width:100%。
 用 :where() 把特异性压到 0，保证修饰类仍能覆盖。**不要逐个加 className="w-full"** ——
 19 处将来还会新增，改基础类才是一次修好。
+（kit 的 TextArea 仍渲染 `.textarea` 类、样式同在，所以这条修法继续有效。）
 
 **教训**：这类问题不报错、类型也对、构建也过，只能靠**量尺寸**发现。
 所以专门加了 verify-textarea.mjs：遍历各页面的 textarea，比较它与父容器内容宽度，

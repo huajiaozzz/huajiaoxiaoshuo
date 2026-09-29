@@ -3,7 +3,8 @@
 本地优先的 AI 长篇小说创作工作台。人物、世界观、伏笔、时间线都是可被 AI 读取的结构化资产，
 每次生成都会自动组装正确的上下文 —— 目标是让 AI 写出来的东西不用大改。
 
-- 前端：React 19 · TypeScript · HeroUI v3 · Tailwind CSS v4 · Vite 8
+- 前端：React 19 · TypeScript · Tailwind CSS v4 · Vite 8
+- UI：Animate UI（弹窗/气泡/按钮/数字等动画原语，源码在 `src/components/animate-ui`）+ 自研控件 `src/components/kit`，动效引擎 motion
 - 存储：浏览器 IndexedDB（Dexie），**数据不出本机**；可导出 JSON 全量备份
 - 模型：DeepSeek / OpenAI / Kimi / 智谱 / 通义 / 硅基流动 / OpenRouter / Ollama / LM Studio / 任意 OpenAI 兼容服务
 
