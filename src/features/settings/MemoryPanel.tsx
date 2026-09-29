@@ -4,8 +4,8 @@ import {
   Brain, Check, Lightbulb, Pin, PinOff, Plus, RefreshCw, Sparkles, Trash2,
   EyeOff, Eye, AlertTriangle, BookMarked, Quote, GitMerge, X, Radar,
 } from "lucide-react";
-import type { ID, MemoryEffect, MemoryFact, MemoryKind, ProviderConfig, SemanticRecallSettings } from "@/core";
-import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall } from "@/core";
+import type { ID, MemoryEffect, MemoryFact, MemoryKind, ProviderConfig, SemanticRecallSettings, VikingSettings } from "@/core";
+import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall, resolveViking } from "@/core";
 import { useAppStore } from "@/app/store";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -16,6 +16,7 @@ import {
 } from "@/db/repo/memory";
 import { listProviders } from "@/db/repo/settings";
 import { lastEmbeddingError, probeEmbedding } from "@/ai/embedding";
+import { lastVikingError, probeViking } from "@/ai/viking";
 import { EmbeddingModelPicker } from "./EmbeddingModelPicker";
 import { ModelSelect, looksLikeEmbeddingModel } from "@/components/common/ModelSelect";
 import { extractRuleBasedMemory, suggestPreferences, type PreferenceCandidate } from "@/ai/memory-extract";
@@ -653,8 +654,8 @@ function ConflictSide({ label, text }: { label: string; text: string }) {
 function SemanticRecallSection({
   settings, updateSettings, notify,
 }: {
-  settings: { semanticRecall?: SemanticRecallSettings };
-  updateSettings: (patch: { semanticRecall?: SemanticRecallSettings }) => void;
+  settings: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings };
+  updateSettings: (patch: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings }) => void;
   notify: (kind: "info" | "success" | "warning" | "danger", text: string, detail?: string) => void;
 }) {
   const recall = resolveSemanticRecall(settings);
@@ -807,8 +808,85 @@ function SemanticRecallSection({
             启动日志里能看到 CORS 相关的报错。
           </p>
         )}
+        <VikingSection settings={settings} updateSettings={updateSettings} notify={notify} />
       </div>
     </section>
+  );
+}
+
+function VikingSection({
+  settings, updateSettings, notify,
+}: {
+  settings: { viking?: VikingSettings };
+  updateSettings: (patch: { viking?: VikingSettings }) => void;
+  notify: (kind: "info" | "success" | "warning" | "danger", text: string, detail?: string) => void;
+}) {
+  const vk = resolveViking(settings);
+  const [testing, setTesting] = useState(false);
+  const patch = (p: Partial<VikingSettings>) => updateSettings({ viking: { ...vk, ...p } });
+
+  const runProbe = async () => {
+    setTesting(true);
+    try {
+      const res = await probeViking({ ...vk });
+      notify(res.ok ? "success" : "warning", res.ok ? "OpenViking 服务可用" : "OpenViking 不可用", res.message);
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 rounded-lg border border-black/8 p-3 dark:border-white/10">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium">OpenViking 增强召回（可选）</p>
+        <Switch isSelected={vk.enabled} onChange={(v) => patch({ enabled: v })}>
+          <Switch.Content>
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+            {vk.enabled ? "已启用" : "未启用"}
+          </Switch.Content>
+        </Switch>
+      </div>
+      <p className="mt-1.5 text-[11px] leading-relaxed opacity-65">
+        OpenViking 是一个开源的记忆服务：它把记忆按"人物 / 世界观 / 设定"分级存放，
+        召回时先定位到相关的那一枝、再往下细找。记忆特别多（几百条以上）时，
+        它比本地向量召回更准、送进模型的字也更少。
+      </p>
+      <p className="mt-1 text-[11px] leading-relaxed opacity-65">
+        需要你自己先装好并启动它（`uv tool install openviking`，然后 `openviking-server`，
+        默认地址就是下面的 1933 端口；文档在 docs.openviking.net）。没装、没开、
+        连不上 —— 都会静默退回原来的召回链路，写作不受任何影响。
+        开启后本项目的记忆会被同步一份到它的 `huajiao/你的项目` 目录下，仅存你自己的机器上。
+      </p>
+      <div className={"mt-2 flex flex-wrap items-center gap-2 " + (vk.enabled ? "" : "opacity-50")}>
+        <label className="flex items-center gap-1 text-[11px] opacity-70">
+          服务地址
+          <input
+            value={vk.endpoint}
+            onChange={(e) => patch({ endpoint: e.target.value })}
+            placeholder="http://127.0.0.1:1933"
+            className="w-52 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
+          />
+        </label>
+        <label className="flex items-center gap-1 text-[11px] opacity-70">
+          API Key（本地默认不用填）
+          <input
+            type="password"
+            value={vk.apiKey ?? ""}
+            onChange={(e) => patch({ apiKey: e.target.value || undefined })}
+            placeholder="远端需要鉴权时填"
+            className="w-44 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
+          />
+        </label>
+        <Button size="sm" variant="outline" isPending={testing} onPress={() => void runProbe()}>
+          测试连接
+        </Button>
+      </div>
+      {lastVikingError() ? (
+        <p className="mt-1 text-[10px] leading-relaxed opacity-50">上次调用失败：{lastVikingError()}</p>
+      ) : null}
+    </div>
   );
 }
 

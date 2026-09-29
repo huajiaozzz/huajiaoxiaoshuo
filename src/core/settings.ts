@@ -57,6 +57,8 @@ export interface AppSettings {
 
   // ---------- 语义召回（可选，默认关闭） ----------
   semanticRecall?: SemanticRecallSettings;
+  // ---------- OpenViking 增强召回（可选，默认关闭） ----------
+  viking?: VikingSettings;
 }
 
 /** 向量来源：本地 Ollama，或任意 OpenAI 兼容的 /embeddings 端点 */
@@ -95,6 +97,33 @@ export function resolveSemanticRecall(settings?: Partial<AppSettings> | null): S
     ...(raw ?? {}),
     // topK 用 0 会让召回失效，兜回默认值
     topK: raw?.topK && raw.topK > 0 ? Math.min(raw.topK, 24) : DEFAULT_SEMANTIC_RECALL.topK,
+  };
+}
+
+// ---------- OpenViking 增强召回（可选，默认关闭） ----------
+export interface VikingSettings {
+  /**
+   * 默认 false。OpenViking 是外置的记忆服务（需另行安装，见设置页说明），
+   * 没开就完全不碰它 —— 本地向量召回与规则排序照常工作。
+   */
+  enabled: boolean;
+  /** OpenViking 服务地址，默认本地 1933 端口 */
+  endpoint: string;
+  /** 远端需要鉴权时填；本地默认安装不需要 */
+  apiKey?: string;
+}
+
+export const DEFAULT_VIKING: VikingSettings = {
+  enabled: false,
+  endpoint: 'http://127.0.0.1:1933',
+};
+
+export function resolveViking(settings?: Partial<AppSettings> | null): VikingSettings {
+  const raw = (settings as { viking?: Partial<VikingSettings> } | null)?.viking;
+  return {
+    ...DEFAULT_VIKING,
+    ...(raw ?? {}),
+    endpoint: (raw?.endpoint ?? '').trim() || DEFAULT_VIKING.endpoint,
   };
 }
 

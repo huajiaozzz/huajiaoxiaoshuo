@@ -1,6 +1,7 @@
 import type { ID, MemoryFact } from '@/core';
 import { buildRecallQuery } from '@/db/repo/memory';
 import { cosine, embedOne, embeddingSettings, lastEmbeddingError, memoryVectors } from './embedding';
+import { recallViaViking, vikingSettings } from './viking';
 
 /**
  * 语义召回：按"当前在写什么"挑记忆。
@@ -188,6 +189,29 @@ export async function recallMemories(opts: RecallOptions): Promise<RecallOutcome
   }
   if (!query) return { facts, semantic: false, pickedIds: [], note: '还没有正文或大纲可以作为召回query' };
 
+  // OpenViking 开着就先走它：分级检索 + 目录定位，命中按记忆 id 映射回来。
+  // 任何一步失败都退回下面的本地链路，note 里写清原因（只给设置页看）。
+  const vk = vikingSettings();
+  if (vk.enabled) {
+    const topK = Math.max(1, opts.topK ?? cfg.topK);
+    const res = await recallViaViking(opts.projectId, query, facts, vk, topK);
+    if (res.pickedIds.length) {
+      return { facts: mergeRecallOrder(facts, res.pickedIds, opts.limit), semantic: true, pickedIds: res.pickedIds };
+    }
+    const vnote = res.note;
+    const fallback = await localRecall(opts, facts, query, cfg);
+    return vnote && !fallback.semantic ? { ...fallback, note: vnote } : fallback;
+  }
+
+  return localRecall(opts, facts, query, cfg);
+}
+
+async function localRecall(
+  opts: RecallOptions,
+  facts: MemoryFact[],
+  query: string,
+  cfg: ReturnType<typeof embeddingSettings>,
+): Promise<RecallOutcome> {
   const queryVec = await embedOne(query, cfg);
   if (!queryVec) {
     return { facts, semantic: false, pickedIds: [], note: lastEmbeddingError() ?? '向量服务不可用，已退回规则排序' };
