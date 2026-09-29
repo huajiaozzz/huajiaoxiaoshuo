@@ -73,6 +73,7 @@ export function TemplatePicker({
   const [error, setError] = useState<string>();
 
   const settings = useAppStore((s) => s.settings);
+  const setNewProjectOpen = useAppStore((s) => s.setNewProjectOpen);
   const openSettings = useOpenSettings();
   const providers = useLiveQuery(() => listProviders(), [], undefined);
 
@@ -240,10 +241,18 @@ export function TemplatePicker({
           {modelReady === false && (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.07] px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
               <span>还没有可用的模型：先选一个供应商并填 Key（本地模型需要在运行中）。</span>
-              <Button size="sm" variant="ghost" onPress={() => openSettings("models")}>
-                <Settings2 className="size-3.5" />
-                打开设置
-              </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onPress={() => {
+                    // 弹窗盖在设置页上会让人以为「点了没反应」：先把新建作品弹窗关掉，再跳模型设置
+                    setNewProjectOpen(false);
+                    openSettings("models");
+                  }}
+                >
+                  <Settings2 className="size-3.5" />
+                  打开设置
+                </Button>
             </div>
           )}
 
