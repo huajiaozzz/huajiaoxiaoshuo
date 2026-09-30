@@ -89,7 +89,7 @@ export function ChapterSettings({
   // primitive 的 transition 进出共用，退场更快是靠 exit 目标自带的 transition 单独定的
   return (
     // 退场期间先断开交互：淡出时弹层还挂在页面上，再点一下会把一次关闭点成两次动作
-    <div className={closing ? "" : "pointer-events-none"}>
+    <div className={closing ? "pointer-events-none" : ""}>
       <AnimatePresence onExitComplete={() => onClose()}>
         {!closing && (
           <Fade
