@@ -12,6 +12,7 @@
     "check": "tsc -b",
     "verify": "node scripts/verify-utils.mjs",
     "release": "node scripts/release.mjs",
+    "deploy": "node scripts/deploy.mjs",
     "tauri": "tauri dev",
     "tauri:build": "tauri build",
     "verify:zip": "node scripts/verify-zip.mjs",
