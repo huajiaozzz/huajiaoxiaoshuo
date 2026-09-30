@@ -33,3 +33,7 @@ promo-video/shots/
 
 # 生成产物（视频/帧/音频工作目录）不进仓库
 brag-output-*/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
