@@ -109,19 +109,28 @@ export function resolveSemanticRecall(settings?: Partial<AppSettings> | null): S
 // ---------- OpenViking 增强召回（可选，默认关闭） ----------
 export interface VikingSettings {
   /**
-   * 默认 false。OpenViking 是外置的记忆服务（需另行安装，见设置页说明），
+   * 默认 false。OpenViking 是外置的分级记忆服务：
+   *  - 火山引擎托管版（官方，默认地址）：云服务，在控制台拿 API Key 填进来即可；
+   *  - 自建开源版：本机跑 openviking-server，默认 127.0.0.1:1933，不用 Key。
    * 没开就完全不碰它 —— 本地向量召回与规则排序照常工作。
    */
   enabled: boolean;
-  /** OpenViking 服务地址，默认本地 1933 端口 */
+  /** 服务地址：默认火山引擎托管的 OpenViking Context */
   endpoint: string;
-  /** 远端需要鉴权时填；本地默认安装不需要 */
+  /** 火山托管必填（控制台 → 用户管理 → API Key）；自建版留空 */
   apiKey?: string;
+  /** 可选：X-OpenViking-Agent，用来区分是哪个应用写的数据 */
+  agent?: string;
 }
+
+/** 火山引擎托管的 OpenViking Context（官方服务） */
+export const VIKING_CLOUD_ENDPOINT = 'https://api.vikingdb.cn-beijing.volces.com/openviking';
+/** 自建开源版 */
+export const VIKING_SELF_HOSTED_ENDPOINT = 'http://127.0.0.1:1933';
 
 export const DEFAULT_VIKING: VikingSettings = {
   enabled: false,
-  endpoint: 'http://127.0.0.1:1933',
+  endpoint: VIKING_CLOUD_ENDPOINT,
 };
 
 export function resolveViking(settings?: Partial<AppSettings> | null): VikingSettings {

@@ -5,7 +5,7 @@ import {
   EyeOff, Eye, AlertTriangle, BookMarked, Quote, GitMerge, X, Radar, Copy, Zap, CircleHelp,
 } from "lucide-react";
 import type { ID, MemoryEffect, MemoryFact, MemoryKind, ProviderConfig, SemanticRecallSettings, VikingSettings, LayaSettings, HindsightSettings } from "@/core";
-import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall, resolveViking, resolveLaya, resolveHindsight } from "@/core";
+import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall, resolveViking, resolveLaya, resolveHindsight, VIKING_CLOUD_ENDPOINT, VIKING_SELF_HOSTED_ENDPOINT } from "@/core";
 import { useAppStore } from "@/app/store";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -955,23 +955,6 @@ function VikingSection({
     }
   };
 
-  /** 一键启用：填默认地址并测试，没装会提示复制命令安装 */
-  const oneKeyEnable = async () => {
-    const next = { ...vk, enabled: true, endpoint: "http://127.0.0.1:1933" };
-    updateSettings({ viking: next });
-    setTesting(true);
-    try {
-      const res = await probeViking(next);
-      notify(
-        res.ok ? "success" : "warning",
-        res.ok ? "OpenViking 已启用" : "已启用，但还没连上服务",
-        res.ok ? "记忆多时会自动走分级召回" : "请先启动服务：复制下面的安装命令到终端跑一次，再点“测试连接”",
-      );
-    } finally {
-      setTesting(false);
-    }
-  };
-
   return (
     <div className="mt-3 rounded-lg border border-black/8 p-3 dark:border-white/10">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -986,49 +969,58 @@ function VikingSection({
         </Switch>
       </div>
       <p className="mt-1.5 text-[11px] leading-relaxed opacity-65">
-        OpenViking 是一个开源的记忆服务：它把记忆按“人物 / 世界观 / 设定”分级存放，
-        召回时先定位到相关的那一枝、再往下细找。记忆特别多（几百条以上）时，
-        它比本地向量召回更准、送进模型的字也更少。
+        OpenViking 把记忆按“人物 / 世界观 / 设定”分级存放，召回时先定位到相关的那一枝、再往下细找。
+        记忆特别多（几百条以上）时，它比本地向量召回更准、送进模型的字也更少。
       </p>
       <p className="mt-1 text-[11px] leading-relaxed opacity-65">
-        弊端：要另装一个常驻服务占内存，刚同步完索引有延迟；只有记忆很多时才值得开，平时完全可以关掉。
-        没装、没开、连不上 —— 都会静默退回原来的召回链路，写作不受任何影响。
-        开启后本项目的记忆会被同步一份到它的 `huajiao/你的项目` 目录下，仅存你自己的机器上。
+        两种用法：<b>火山引擎托管版</b>（官方服务，在火山控制台开通 OpenViking Context、建库后拿
+        API Key 填进来，开箱即用）；<b>本地自建版</b>（跑 openviking-server，免费但要自己维护）。
+        火山版要配方舟模型凭证（VLM + Embedding），按量计费。
+        没填 Key、没起服务、连不上 —— 都会静默退回原来的召回链路，写作不受任何影响。
       </p>
-      {!vk.enabled && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          <Button size="sm" variant="primary" isPending={testing} onPress={() => void oneKeyEnable()}>
-            <Zap className="size-3.5" />
-            一键启用
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onPress={() => void copyText("uv tool install openviking && openviking-server", notify)}
-          >
-            <Copy className="size-3.5" />
-            复制安装命令
-          </Button>
-        </div>
-      )}
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button size="sm" variant={vk.endpoint.includes("vikingdb") ? "primary" : "outline"} onPress={() => patch({ endpoint: VIKING_CLOUD_ENDPOINT })}>
+          用火山云托管
+        </Button>
+        <Button size="sm" variant={vk.endpoint.includes("127.0.0.1") ? "primary" : "outline"} onPress={() => patch({ endpoint: VIKING_SELF_HOSTED_ENDPOINT })}>
+          用本地自建
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onPress={() => void copyText("uv tool install openviking && openviking-server", notify)}
+        >
+          <Copy className="size-3.5" />
+          复制自建安装命令
+        </Button>
+      </div>
       <div className={"mt-2 flex flex-wrap items-center gap-2 " + (vk.enabled ? "" : "opacity-50")}>
         <label className="flex items-center gap-1 text-[11px] opacity-70">
           服务地址
           <input
             value={vk.endpoint}
             onChange={(e) => patch({ endpoint: e.target.value })}
-            placeholder="http://127.0.0.1:1933"
-            className="w-52 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
+            placeholder={VIKING_CLOUD_ENDPOINT}
+            className="w-80 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
           />
         </label>
         <label className="flex items-center gap-1 text-[11px] opacity-70">
-          API Key（本地默认不用填）
+          API Key
           <input
             type="password"
             value={vk.apiKey ?? ""}
             onChange={(e) => patch({ apiKey: e.target.value || undefined })}
-            placeholder="远端需要鉴权时填"
-            className="w-44 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
+            placeholder="火山控制台 → 用户管理（自建版不用填）"
+            className="w-56 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
+          />
+        </label>
+        <label className="flex items-center gap-1 text-[11px] opacity-70">
+          Agent ID（可选）
+          <input
+            value={vk.agent ?? ""}
+            onChange={(e) => patch({ agent: e.target.value || undefined })}
+            placeholder="huajiao-writer"
+            className="w-36 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
           />
         </label>
         <Button size="sm" variant="outline" isPending={testing} onPress={() => void runProbe()}>

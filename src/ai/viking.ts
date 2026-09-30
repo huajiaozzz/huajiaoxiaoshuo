@@ -6,10 +6,27 @@ export function vikingSettings(): VikingSettings {
   return resolveViking(loadSettings());
 }
 
+/** 鉴权：火山托管认 Authorization: Bearer，自建开源版认 X-API-Key —— 两个都带，两边通吃 */
 function headers(cfg: VikingSettings): Record<string, string> {
+  const key = cfg.apiKey?.trim();
   const h: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (cfg.apiKey?.trim()) h['X-API-Key'] = cfg.apiKey.trim();
+  if (key) {
+    h['Authorization'] = 'Bearer ' + key;
+    h['X-API-Key'] = key;
+  }
+  // 可选：标记数据是哪个应用写的（火山托管支持）
+  if (cfg.agent?.trim()) h['X-OpenViking-Agent'] = cfg.agent.trim();
   return h;
+}
+
+/** 把 HTTP 状态码翻成人话 */
+function explainStatus(status: number): string {
+  if (status === 401) return 'API Key 无效或没填（401）—— 火山托管在控制台「用户管理」拿 Key';
+  if (status === 403) return '没有权限访问这个库（403）';
+  if (status === 404) return '接口或资源不存在（404）—— 检查地址是不是对应版本';
+  if (status === 429) return '请求太频繁（429），稍后再试';
+  if (status >= 500) return 'OpenViking 服务端出错（' + status + '）';
+  return 'HTTP ' + status;
 }
 
 async function postJson<T>(url: string, cfg: VikingSettings, body: unknown, timeoutMs: number): Promise<T> {
@@ -22,8 +39,11 @@ async function postJson<T>(url: string, cfg: VikingSettings, body: unknown, time
       body: JSON.stringify(body),
       signal: ctrl.signal,
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error(explainStatus(res.status));
     return (await res.json()) as T;
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') throw new Error('请求超时');
+    throw e;
   } finally {
     clearTimeout(timer);
   }
@@ -39,10 +59,11 @@ export function lastVikingError(): string {
 export async function probeViking(cfg: VikingSettings = vikingSettings()): Promise<{ ok: boolean; message: string }> {
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const timer = setTimeout(() => ctrl.abort(), 10000);
     try {
-      const res = await fetch(cfg.endpoint.replace(/\/$/, '') + '/health', { signal: ctrl.signal });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // /health 在火山托管下也要鉴权，所以带上请求头
+      const res = await fetch(cfg.endpoint.replace(/\/$/, '') + '/health', { headers: headers(cfg), signal: ctrl.signal });
+      if (!res.ok) throw new Error(explainStatus(res.status));
     } finally {
       clearTimeout(timer);
     }
