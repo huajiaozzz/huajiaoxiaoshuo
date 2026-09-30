@@ -4,8 +4,8 @@ import {
   Brain, Check, Lightbulb, Pin, PinOff, Plus, RefreshCw, Sparkles, Trash2,
   EyeOff, Eye, AlertTriangle, BookMarked, Quote, GitMerge, X, Radar, Copy, Zap, CircleHelp,
 } from "lucide-react";
-import type { ID, MemoryEffect, MemoryFact, MemoryKind, ProviderConfig, SemanticRecallSettings, VikingSettings, LayaSettings } from "@/core";
-import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall, resolveViking, resolveLaya } from "@/core";
+import type { ID, MemoryEffect, MemoryFact, MemoryKind, ProviderConfig, SemanticRecallSettings, VikingSettings, LayaSettings, HindsightSettings } from "@/core";
+import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall, resolveViking, resolveLaya, resolveHindsight } from "@/core";
 import { useAppStore } from "@/app/store";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -17,6 +17,7 @@ import {
 import { listProviders } from "@/db/repo/settings";
 import { lastEmbeddingError, probeEmbedding } from "@/ai/embedding";
 import { lastLayaError, probeLaya } from "@/ai/laya";
+import { lastHindsightError, probeHindsight } from "@/ai/hindsight";
 import { lastVikingError, probeViking } from "@/ai/viking";
 import { EmbeddingModelPicker } from "./EmbeddingModelPicker";
 import { ModelSelect, looksLikeEmbeddingModel } from "@/components/common/ModelSelect";
@@ -692,9 +693,9 @@ function MemorySystemsGuide() {
     },
     {
       name: "Hindsight",
-      tag: "规划中",
-      good: "跨书长期记忆 + 自动归纳，适合写系列文。",
-      bad: "弊端：自建 Docker 常驻约 0.5~1.5G 内存，对小白最麻烦，暂不推荐。",
+      tag: "可选",
+      good: "云端长期记忆 + 自动归纳去重，适合写系列文、跨书复用设定。",
+      bad: "弊端：要注册拿 key + 自建 bank；记忆文本会发到云端，和本地优先冲突，介意就别开。",
     },
   ];
   return (
@@ -736,8 +737,8 @@ function MemorySystemsGuide() {
 function SemanticRecallSection({
   settings, updateSettings, notify,
 }: {
-  settings: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; laya?: LayaSettings };
-  updateSettings: (patch: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; laya?: LayaSettings }) => void;
+  settings: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; laya?: LayaSettings; hindsight?: HindsightSettings };
+  updateSettings: (patch: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; laya?: LayaSettings; hindsight?: HindsightSettings }) => void;
   notify: (kind: "info" | "success" | "warning" | "danger", text: string, detail?: string) => void;
 }) {
   const recall = resolveSemanticRecall(settings);
@@ -927,7 +928,7 @@ function SemanticRecallSection({
         )}
         <VikingSection settings={settings} updateSettings={updateSettings} notify={notify} />
         <LayaSection settings={settings} updateSettings={updateSettings} notify={notify} />
-        <HindsightSection notify={notify} />
+        <HindsightSection settings={settings} updateSettings={updateSettings} notify={notify} />
       </div>
     </section>
   );
@@ -1138,45 +1139,88 @@ function LayaSection({
 }
 
 /**
- * Hindsight 预告：还没接进来，先把说明和弊端讲清楚，免得作者乱装。
- * 自建 Docker 常驻约 0.5~1.5G 内存，对写作者来说最麻烦，所以默认不做；
- * 真要上也会做成和 Viking 一样的“一键启用 + 静默降级”。
+ * Hindsight 云记忆：跨书长期记忆 + 自动归纳，适合写系列文。
+ * 云服务（要 hsk_ 开头的 key + 自建 bank），没配好就静默退回原链路。
  */
 function HindsightSection({
-  notify,
+  settings, updateSettings, notify,
 }: {
+  settings: { hindsight?: HindsightSettings };
+  updateSettings: (patch: { hindsight?: HindsightSettings }) => void;
   notify: (kind: "info" | "success" | "warning" | "danger", text: string, detail?: string) => void;
 }) {
+  const hs = resolveHindsight(settings);
+  const [testing, setTesting] = useState(false);
+  const patch = (p: Partial<HindsightSettings>) => updateSettings({ hindsight: { ...hs, ...p } });
+
+  const runProbe = async () => {
+    setTesting(true);
+    try {
+      const res = await probeHindsight({ ...hs });
+      notify(res.ok ? "success" : "warning", res.ok ? "Hindsight 记忆库可用" : "Hindsight 不可用", res.message);
+    } finally {
+      setTesting(false);
+    }
+  };
+
   return (
-    <div className="mt-3 rounded-lg border border-dashed border-black/15 p-3 dark:border-white/15">
+    <div className="mt-3 rounded-lg border border-black/8 p-3 dark:border-white/10">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium">Hindsight 长期记忆（规划中）</p>
-        <Chip size="sm" color="warning">
-          暂未接入
-        </Chip>
+        <p className="text-xs font-medium">Hindsight 长期记忆（可选）</p>
+        <Switch isSelected={hs.enabled} onChange={(v) => patch({ enabled: v })}>
+          <Switch.Content>
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+            {hs.enabled ? "已启用" : "未启用"}
+          </Switch.Content>
+        </Switch>
       </div>
       <p className="mt-1.5 text-[11px] leading-relaxed opacity-65">
-        说明：一本书一个记忆库，自动归纳人物关系和伏笔，适合写系列文、跨书复用设定。
+        说明：一本书的记忆同步一份到云端记忆库，自动归纳去重；召回按相关度映射回本地记忆。
+        适合写系列文、跨书复用设定。
       </p>
       <p className="mt-1 text-[11px] leading-relaxed opacity-65">
-        弊端：自建要装 Docker 并常驻约 0.5~1.5G 内存，还要配模型 Key；云版要把正文发出去，和本地优先冲突。
-        所以现在不推荐折腾 —— 本地记忆 + 语义召回已经够用。接入后也会是一键启用，连不上自动退回。
+        需要去 Hindsight 后台注册拿 key（hsk_ 开头）并建一个 bank 填到下面。
+        注意这是云服务：同步会把记忆文本发出去，和本地优先冲突，介意就别开。
+        没配好、连不上 —— 都会静默退回原来的召回链路，写作不受影响。
       </p>
-      <div className="mt-2 flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onPress={() =>
-            void copyText(
-              "docker run -p 8888:8888 -p 9999:9999 -v hindsight-data:/home/hindsight/.pg0 ghcr.io/vectorize-io/hindsight:latest",
-              notify,
-            )
-          }
-        >
-          <Copy className="size-3.5" />
-          复制自建命令（尝鲜用）
+      <div className={"mt-2 flex flex-wrap items-center gap-2 " + (hs.enabled ? "" : "opacity-50")}>
+        <label className="flex items-center gap-1 text-[11px] opacity-70">
+          API 地址
+          <input
+            value={hs.apiUrl}
+            onChange={(e) => patch({ apiUrl: e.target.value })}
+            placeholder="https://api.hindsight.vectorize.io"
+            className="w-56 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
+          />
+        </label>
+        <label className="flex items-center gap-1 text-[11px] opacity-70">
+          API Key
+          <input
+            type="password"
+            value={hs.apiKey ?? ""}
+            onChange={(e) => patch({ apiKey: e.target.value || undefined })}
+            placeholder="hsk_…"
+            className="w-44 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
+          />
+        </label>
+        <label className="flex items-center gap-1 text-[11px] opacity-70">
+          Bank ID
+          <input
+            value={hs.bankId ?? ""}
+            onChange={(e) => patch({ bankId: e.target.value || undefined })}
+            placeholder="在后台建好后填进来"
+            className="w-44 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
+          />
+        </label>
+        <Button size="sm" variant="outline" isPending={testing} onPress={() => void runProbe()}>
+          测试连接
         </Button>
       </div>
+      {lastHindsightError() ? (
+        <p className="mt-1 text-[10px] leading-relaxed opacity-50">上次调用失败：{lastHindsightError()}</p>
+      ) : null}
     </div>
   );
 }

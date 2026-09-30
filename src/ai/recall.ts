@@ -2,6 +2,7 @@ import type { ID, MemoryFact } from '@/core';
 import { buildRecallQuery } from '@/db/repo/memory';
 import { cosine, embedOne, embeddingSettings, lastEmbeddingError, memoryVectors } from './embedding';
 import { recallViaViking, vikingSettings } from './viking';
+import { recallViaHindsight, hindsightSettings } from './hindsight';
 
 /**
  * 语义召回：按"当前在写什么"挑记忆。
@@ -176,8 +177,10 @@ export async function recallMemories(opts: RecallOptions): Promise<RecallOutcome
   if (!facts.length) return { facts, semantic: false, pickedIds: [] };
 
   const cfg = embeddingSettings();
-  // 默认关闭：没开就一定不做任何额外工作（不读章节、不发请求），行为与改动前完全一致
-  if (!cfg.enabled) return { facts, semantic: false, pickedIds: [] };
+  const vk = vikingSettings();
+  const hs = hindsightSettings();
+  // 全关：不做任何额外工作（不读章节、不发请求），行为与改动前完全一致
+  if (!cfg.enabled && !vk.enabled && !hs.enabled) return { facts, semantic: false, pickedIds: [] };
 
   let query = (opts.query ?? '').trim();
   if (!query) {
@@ -189,21 +192,29 @@ export async function recallMemories(opts: RecallOptions): Promise<RecallOutcome
   }
   if (!query) return { facts, semantic: false, pickedIds: [], note: '还没有正文或大纲可以作为召回query' };
 
-  // OpenViking 开着就先走它：分级检索 + 目录定位，命中按记忆 id 映射回来。
-  // 任何一步失败都退回下面的本地链路，note 里写清原因（只给设置页看）。
-  const vk = vikingSettings();
+  // 外挂召回按顺序试：Viking（本地服务）→ Hindsight（云端记忆）→ 本地链路。
+  // 谁先命中用谁；全失败才回规则排序，note 里写清原因（只给设置页看）。
+  const topK = Math.max(1, opts.topK ?? cfg.topK);
+  const notes: string[] = [];
+
   if (vk.enabled) {
-    const topK = Math.max(1, opts.topK ?? cfg.topK);
     const res = await recallViaViking(opts.projectId, query, facts, vk, topK);
     if (res.pickedIds.length) {
       return { facts: mergeRecallOrder(facts, res.pickedIds, opts.limit), semantic: true, pickedIds: res.pickedIds };
     }
-    const vnote = res.note;
-    const fallback = await localRecall(opts, facts, query, cfg);
-    return vnote && !fallback.semantic ? { ...fallback, note: vnote } : fallback;
+    if (res.note) notes.push(res.note);
   }
 
-  return localRecall(opts, facts, query, cfg);
+  if (hs.enabled) {
+    const hres = await recallViaHindsight(opts.projectId, query, facts, hs, topK);
+    if (hres.pickedIds.length) {
+      return { facts: mergeRecallOrder(facts, hres.pickedIds, opts.limit), semantic: true, pickedIds: hres.pickedIds };
+    }
+    if (hres.note) notes.push(hres.note);
+  }
+
+  const fallback = await localRecall(opts, facts, query, cfg);
+  return notes.length && !fallback.semantic ? { ...fallback, note: notes[notes.length - 1] } : fallback;
 }
 
 async function localRecall(
@@ -212,6 +223,8 @@ async function localRecall(
   query: string,
   cfg: ReturnType<typeof embeddingSettings>,
 ): Promise<RecallOutcome> {
+  // 本地召回没开：直接回规则排序，不碰 embedding（不断路器、不写错误）
+  if (!cfg.enabled) return { facts, semantic: false, pickedIds: [] };
   const queryVec = await embedOne(query, cfg);
   if (!queryVec) {
     return { facts, semantic: false, pickedIds: [], note: lastEmbeddingError() ?? '向量服务不可用，已退回规则排序' };

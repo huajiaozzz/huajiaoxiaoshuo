@@ -61,6 +61,8 @@ export interface AppSettings {
   viking?: VikingSettings;
   // ---------- Laya 本地决策模型（可选，默认关闭） ----------
   laya?: LayaSettings;
+  // ---------- Hindsight 云记忆（可选，默认关闭） ----------
+  hindsight?: HindsightSettings;
   // ---------- 保存后自动抽取（默认开启） ----------
   autoExtract?: AutoExtractSettings;
 }
@@ -178,6 +180,35 @@ export function resolveLaya(settings?: Partial<AppSettings> | null): LayaSetting
     ...DEFAULT_LAYA,
     ...(raw ?? {}),
     endpoint: (raw?.endpoint ?? '').trim() || DEFAULT_LAYA.endpoint,
+  };
+}
+
+// ---------- Hindsight 云记忆（可选，默认关闭） ----------
+export interface HindsightSettings {
+  /**
+   * 默认 false。Hindsight 是云端记忆服务（要注册拿 hsk_ 开头的 key，另建 bank），
+   * 没开就完全不碰它 —— 本地链路照常工作。
+   */
+  enabled: boolean;
+  /** 云 API 地址，一般不用改 */
+  apiUrl: string;
+  /** hsk_ 开头的 key，存在本地设置里，不上传别处 */
+  apiKey?: string;
+  /** 记忆库 id，在 Hindsight 后台建好后填进来 */
+  bankId?: string;
+}
+
+export const DEFAULT_HINDSIGHT: HindsightSettings = {
+  enabled: false,
+  apiUrl: 'https://api.hindsight.vectorize.io',
+};
+
+export function resolveHindsight(settings?: Partial<AppSettings> | null): HindsightSettings {
+  const raw = (settings as { hindsight?: Partial<HindsightSettings> } | null)?.hindsight;
+  return {
+    ...DEFAULT_HINDSIGHT,
+    ...(raw ?? {}),
+    apiUrl: (raw?.apiUrl ?? '').trim() || DEFAULT_HINDSIGHT.apiUrl,
   };
 }
 
