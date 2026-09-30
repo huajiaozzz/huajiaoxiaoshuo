@@ -157,6 +157,92 @@ export function ActivationPanel() {
         )}
       </div>
 
+      <PriceTable />
+
+    </div>
+  );
+}
+
+/** 版本与价格：说清楚每一档给什么、多少钱 */
+const PLANS = [
+  {
+    name: "免费版",
+    price: "0 元",
+    tag: "普通功能免费",
+    highlight: false,
+    items: [
+      { text: "写作、大纲、设定库、知识页全都能用", ok: true },
+      { text: "本地保存、导入导出、备份恢复", ok: true },
+      { text: "AI 生成与检查功能", ok: false },
+    ],
+  },
+  {
+    name: "Pro 版",
+    price: "368 元",
+    tag: "全功能无限制",
+    highlight: true,
+    items: [
+      { text: "免费版的全部功能", ok: true },
+      { text: "AI 全套：一句话成书、续写、抽取、一致性检查", ok: true },
+      { text: "写作记忆 + 语义召回 + 本地模型接入", ok: true },
+      { text: "不限字数、不限作品数", ok: true },
+    ],
+  },
+  {
+    name: "私有化部署版",
+    price: "1688 元",
+    tag: "赠送独立授权管理后台",
+    highlight: false,
+    items: [
+      { text: "Pro 版的全部功能", ok: true },
+      { text: "部署到你自己的服务器，数据完全自持", ok: true },
+      { text: "赠送独立授权管理后台，可自行发卡、管设备", ok: true },
+    ],
+  },
+] as const;
+
+function PriceTable() {
+  return (
+    <div className="rounded-xl border border-black/8 p-4 dark:border-white/10">
+      <p className="text-sm font-medium">版本与价格</p>
+      <p className="mt-1 text-xs leading-relaxed opacity-60">
+        普通功能永久免费，只有 AI 能力需要激活。一次买断，不订阅。
+      </p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        {PLANS.map((p) => (
+          <div
+            key={p.name}
+            className={
+              "flex flex-col rounded-xl border p-3.5 " +
+              (p.highlight
+                ? "border-black/25 bg-black/[0.04] dark:border-white/25 dark:bg-white/[0.06]"
+                : "border-black/8 dark:border-white/10")
+            }
+          >
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-sm font-semibold">{p.name}</span>
+              {p.highlight && (
+                <span className="rounded-full bg-black px-2 py-0.5 text-[10px] font-medium text-white dark:bg-white dark:text-black">
+                  推荐
+                </span>
+              )}
+            </div>
+            <p className="mt-1.5 text-xl font-semibold tracking-tight">{p.price}</p>
+            <p className="mt-0.5 text-[11px] opacity-55">{p.tag}</p>
+            <ul className="mt-3 space-y-1.5">
+              {p.items.map((it) => (
+                <li key={it.text} className="flex items-start gap-1.5 text-[11px] leading-relaxed">
+                  <span className={it.ok ? "opacity-70" : "opacity-30"}>{it.ok ? "✓" : "✕"}</span>
+                  <span className={it.ok ? "" : "opacity-45"}>{it.text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[11px] leading-relaxed opacity-55">
+        买之前可以先用免费版写完一本书 —— 没激活也能建项目、写作、保存、导出，只是 AI 生成点不动。
+      </p>
     </div>
   );
 }
