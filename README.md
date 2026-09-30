@@ -85,6 +85,22 @@ docs/          GOTCHAS（陷阱与约定）
 
 ZIP 与 EPUB/DOCX 都是自研实现（`src/features/data/zip.ts`、`ebook.ts`），零第三方依赖，校验方式见 `scripts/verify-zip.mjs` / `verify-ebook.mjs`。
 
+## 发版流程
+
+更新日志只有一个数据源：`src/core/changelog.ts`。应用内「关于 → 更新日志」和 GitHub Release
+都从它生成，改一处两边同步，不要另开一份。
+
+```bash
+# 1. 在 src/core/changelog.ts 加一条版本；顺手把 APP_VERSION 改成同一个号
+# 2. 提交推送
+# 3. 发 Release（自动打 tag、标题用 headline、正文用条目、含 Full Changelog 对比链接）
+npm run release                # 发 APP_VERSION
+npm run release -- 0.13.0      # 或指定版本
+npm run release -- 0.13.0 --dry-run   # 先看再发
+```
+
+打 `v*` tag 会触发桌面端 CI，Mac / Windows 安装包自动挂到对应 Release 的附件里。
+
 ## 数据安全
 
 作品全部存在浏览器 IndexedDB 里。浏览器「清除浏览数据」会连带清掉，
