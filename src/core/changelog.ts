@@ -34,9 +34,28 @@ export const CHANGE_KIND_COLOR: Record<ChangeKind, "success" | "accent" | "warni
   fixed: "warning",
 };
 
-export const APP_VERSION = "0.11.0";
+export const APP_VERSION = "0.12.0";
 
 export const CHANGELOG: Release[] = [
+  {
+    version: "0.12.0",
+    date: "2026-09-30",
+    headline: "Mac / Windows 桌面端",
+    changes: [
+      {
+        kind: "added",
+        items: [
+          "**桌面端**：Tauri 打包，Mac（.app / dmg，已验证启动）与 Windows 双平台；打 tag 后 CI 自动编译，安装包挂到对应 Release 的附件里。网页版行为完全一致（同一份构建产物）。",
+        ],
+      },
+      {
+        kind: "fixed",
+        items: [
+          "**章节设置弹窗卡死**：退场断交互的三元写反了，平时全禁、退场放行；供应商编辑弹窗同一写法一并修复。",
+        ],
+      },
+    ],
+  },
   {
     version: "0.11.0",
     date: "2026-09-30",
