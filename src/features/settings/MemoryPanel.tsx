@@ -4,8 +4,8 @@ import {
   Brain, Check, Lightbulb, Pin, PinOff, Plus, RefreshCw, Sparkles, Trash2,
   EyeOff, Eye, AlertTriangle, BookMarked, Quote, GitMerge, X, Radar, Copy, Zap, CircleHelp,
 } from "lucide-react";
-import type { ID, MemoryEffect, MemoryFact, MemoryKind, ProviderConfig, SemanticRecallSettings, VikingSettings, LayaSettings, HindsightSettings } from "@/core";
-import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall, resolveViking, resolveLaya, resolveHindsight, VIKING_CLOUD_ENDPOINT, VIKING_SELF_HOSTED_ENDPOINT } from "@/core";
+import type { ID, MemoryEffect, MemoryFact, MemoryKind, ProviderConfig, SemanticRecallSettings, VikingSettings, LayaSettings, HindsightSettings, MindMemSettings } from "@/core";
+import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall, resolveViking, resolveLaya, resolveHindsight, resolveMindMem, VIKING_CLOUD_ENDPOINT, VIKING_SELF_HOSTED_ENDPOINT, MINDMEM_CLOUD_ENDPOINT, MINDMEM_SELF_HOSTED_ENDPOINT } from "@/core";
 import { useAppStore } from "@/app/store";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -17,6 +17,7 @@ import {
 import { listProviders } from "@/db/repo/settings";
 import { lastEmbeddingError, probeEmbedding } from "@/ai/embedding";
 import { lastLayaError, probeLaya } from "@/ai/laya";
+import { lastMindMemError, probeMindMem } from "@/ai/mindmem";
 import { lastHindsightError, probeHindsight } from "@/ai/hindsight";
 import { lastVikingError, probeViking } from "@/ai/viking";
 import { EmbeddingModelPicker } from "./EmbeddingModelPicker";
@@ -692,6 +693,12 @@ function MemorySystemsGuide() {
       bad: "弊端：要起桥接服务，需要本机 Python + 模型，判定多一次网络耗时。",
     },
     {
+      name: "MindMemOS",
+      tag: "可选",
+      good: "开源记忆操作系统（华为诺亚方舟）：官方云或本地自建都能用，自动抽取、去重、合并记忆。",
+      bad: "弊端：云端会把记忆文本发出去；本地自建要 Docker 起 Qdrant/Neo4j 一堆依赖，较重。",
+    },
+    {
       name: "Hindsight",
       tag: "可选",
       good: "云端长期记忆 + 自动归纳去重，适合写系列文、跨书复用设定。",
@@ -737,8 +744,8 @@ function MemorySystemsGuide() {
 function SemanticRecallSection({
   settings, updateSettings, notify,
 }: {
-  settings: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; laya?: LayaSettings; hindsight?: HindsightSettings };
-  updateSettings: (patch: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; laya?: LayaSettings; hindsight?: HindsightSettings }) => void;
+  settings: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; laya?: LayaSettings; hindsight?: HindsightSettings; mindmem?: MindMemSettings };
+  updateSettings: (patch: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; laya?: LayaSettings; hindsight?: HindsightSettings; mindmem?: MindMemSettings }) => void;
   notify: (kind: "info" | "success" | "warning" | "danger", text: string, detail?: string) => void;
 }) {
   const recall = resolveSemanticRecall(settings);
@@ -927,6 +934,7 @@ function SemanticRecallSection({
           </p>
         )}
         <VikingSection settings={settings} updateSettings={updateSettings} notify={notify} />
+        <MindMemSection settings={settings} updateSettings={updateSettings} notify={notify} />
         <LayaSection settings={settings} updateSettings={updateSettings} notify={notify} />
         <HindsightSection settings={settings} updateSettings={updateSettings} notify={notify} />
       </div>
@@ -1125,6 +1133,105 @@ function LayaSection({
       </div>
       {lastLayaError() ? (
         <p className="mt-1 text-[10px] leading-relaxed opacity-50">上次调用失败：{lastLayaError()}</p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * MindMemOS 记忆系统：官方云 / 本地自建两种用法。
+ * 云端不支持 CORS 预检，所以走本机或站点自带的转发（和 Hindsight 同一条路）。
+ */
+function MindMemSection({
+  settings, updateSettings, notify,
+}: {
+  settings: { mindmem?: MindMemSettings };
+  updateSettings: (patch: { mindmem?: MindMemSettings }) => void;
+  notify: (kind: "info" | "success" | "warning" | "danger", text: string, detail?: string) => void;
+}) {
+  const mm = resolveMindMem(settings);
+  const [testing, setTesting] = useState(false);
+  const patch = (p: Partial<MindMemSettings>) => updateSettings({ mindmem: { ...mm, ...p } });
+
+  const runProbe = async () => {
+    setTesting(true);
+    try {
+      const res = await probeMindMem({ ...mm });
+      notify(res.ok ? "success" : "warning", res.ok ? "MindMemOS 记忆库可用" : "MindMemOS 不可用", res.message);
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 rounded-lg border border-black/8 p-3 dark:border-white/10">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium">MindMemOS 记忆系统（可选）</p>
+        <Switch isSelected={mm.enabled} onChange={(v) => patch({ enabled: v })}>
+          <Switch.Content>
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+            {mm.enabled ? "已启用" : "未启用"}
+          </Switch.Content>
+        </Switch>
+      </div>
+      <p className="mt-1.5 text-[11px] leading-relaxed opacity-65">
+        开源的记忆操作系统（华为诺亚方舟实验室）。它会从写进去的内容里自动抽取记忆、
+        去重合并，检索时按语义找相关的。适合记忆很多、又想让它自己整理的场景。
+      </p>
+      <p className="mt-1 text-[11px] leading-relaxed opacity-65">
+        两种用法：<b>官方云</b>（去 mindmemos.cn 申请 API Key，填进来就行）或
+        <b>本地自建</b>（clone 仓库后 make dev，默认 127.0.0.1:8000，需要 Docker 起 Qdrant/Neo4j 等）。
+        云端走本机 / 站点的转发（它不支持跨域预检），所以本机跑着 npm run proxy 或线上站点即可。
+        没配好、连不上 —— 都会静默退回原来的召回链路，写作不受影响。
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button size="sm" variant={mm.endpoint.includes("mindmemos.cn") ? "primary" : "outline"} onPress={() => patch({ endpoint: MINDMEM_CLOUD_ENDPOINT })}>
+          用官方云
+        </Button>
+        <Button size="sm" variant={mm.endpoint.includes("127.0.0.1") ? "primary" : "outline"} onPress={() => patch({ endpoint: MINDMEM_SELF_HOSTED_ENDPOINT })}>
+          用本地自建
+        </Button>
+      </div>
+      <div className={"mt-2 flex flex-wrap items-center gap-2 " + (mm.enabled ? "" : "opacity-50")}>
+        <label className="flex items-center gap-1 text-[11px] opacity-70">
+          服务地址
+          <input
+            value={mm.endpoint}
+            onChange={(e) => patch({ endpoint: e.target.value })}
+            placeholder={MINDMEM_CLOUD_ENDPOINT}
+            className="w-64 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
+          />
+        </label>
+        <label className="flex items-center gap-1 text-[11px] opacity-70">
+          API Key
+          <input
+            type="password"
+            value={mm.apiKey ?? ""}
+            onChange={(e) => patch({ apiKey: e.target.value || undefined })}
+            placeholder="mindmemos.cn 申请"
+            className="w-48 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
+          />
+        </label>
+        <label className="flex items-center gap-1 text-[11px] opacity-70">
+          记忆归属
+          <input
+            value={mm.userId ?? ""}
+            onChange={(e) => patch({ userId: e.target.value || undefined })}
+            placeholder="默认按项目隔离"
+            className="w-40 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
+          />
+        </label>
+        <Button size="sm" variant="outline" isPending={testing} onPress={() => void runProbe()}>
+          测试连接
+        </Button>
+      </div>
+      <p className="mt-1 text-[10px] leading-relaxed opacity-50">
+        记忆归属留空 = 每本书各存各的；填一个固定值（如 huajiao-author）则所有书共用一套偏好。
+      </p>
+      {lastMindMemError() ? (
+        <p className="mt-1 text-[10px] leading-relaxed opacity-50">上次调用失败：{lastMindMemError()}</p>
       ) : null}
     </div>
   );

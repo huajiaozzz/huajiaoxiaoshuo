@@ -3,6 +3,7 @@ import { buildRecallQuery } from '@/db/repo/memory';
 import { cosine, embedOne, embeddingSettings, lastEmbeddingError, memoryVectors } from './embedding';
 import { recallViaViking, vikingSettings } from './viking';
 import { recallViaHindsight, hindsightSettings } from './hindsight';
+import { recallViaMindMem, mindmemSettings } from './mindmem';
 
 /**
  * 语义召回：按"当前在写什么"挑记忆。
@@ -179,8 +180,9 @@ export async function recallMemories(opts: RecallOptions): Promise<RecallOutcome
   const cfg = embeddingSettings();
   const vk = vikingSettings();
   const hs = hindsightSettings();
+  const mm = mindmemSettings();
   // 全关：不做任何额外工作（不读章节、不发请求），行为与改动前完全一致
-  if (!cfg.enabled && !vk.enabled && !hs.enabled) return { facts, semantic: false, pickedIds: [] };
+  if (!cfg.enabled && !vk.enabled && !hs.enabled && !mm.enabled) return { facts, semantic: false, pickedIds: [] };
 
   let query = (opts.query ?? '').trim();
   if (!query) {
@@ -211,6 +213,14 @@ export async function recallMemories(opts: RecallOptions): Promise<RecallOutcome
       return { facts: mergeRecallOrder(facts, hres.pickedIds, opts.limit), semantic: true, pickedIds: hres.pickedIds };
     }
     if (hres.note) notes.push(hres.note);
+  }
+
+  if (mm.enabled) {
+    const mres = await recallViaMindMem(opts.projectId, query, facts, mm, topK);
+    if (mres.pickedIds.length) {
+      return { facts: mergeRecallOrder(facts, mres.pickedIds, opts.limit), semantic: true, pickedIds: mres.pickedIds };
+    }
+    if (mres.note) notes.push(mres.note);
   }
 
   const fallback = await localRecall(opts, facts, query, cfg);

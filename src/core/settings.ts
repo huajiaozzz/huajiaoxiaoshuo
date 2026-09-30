@@ -63,6 +63,8 @@ export interface AppSettings {
   laya?: LayaSettings;
   // ---------- Hindsight 云记忆（可选，默认关闭） ----------
   hindsight?: HindsightSettings;
+  // ---------- MindMemOS 记忆系统（可选，默认关闭） ----------
+  mindmem?: MindMemSettings;
   // ---------- 保存后自动抽取（默认开启） ----------
   autoExtract?: AutoExtractSettings;
 }
@@ -189,6 +191,45 @@ export function resolveLaya(settings?: Partial<AppSettings> | null): LayaSetting
     ...DEFAULT_LAYA,
     ...(raw ?? {}),
     endpoint: (raw?.endpoint ?? '').trim() || DEFAULT_LAYA.endpoint,
+  };
+}
+
+// ---------- MindMemOS 记忆系统（可选，默认关闭） ----------
+export interface MindMemSettings {
+  /**
+   * 默认 false。MindMemOS 是开源记忆操作系统（华为诺亚方舟）：
+   *  - 官方云：https://mindmemos.cn，官网申请 API Key；
+   *  - 本地自建：http://127.0.0.1:8000（make dev 起服务）。
+   * 没开就完全不碰它 —— 本地链路照常工作。
+   */
+  enabled: boolean;
+  /** 服务地址：默认官方云 */
+  endpoint: string;
+  /** 云端必填（官网申请）；本地自建用 config/mindmemos/api_keys.yaml 里的 key */
+  apiKey?: string;
+  /**
+   * 记忆归属的用户标识。默认按项目隔离（huajiao:<项目id>），
+   * 想跨书共用同一套偏好就改成固定值，比如 huajiao-author。
+   */
+  userId?: string;
+}
+
+/** 官方云服务 */
+export const MINDMEM_CLOUD_ENDPOINT = 'https://mindmemos.cn';
+/** 本地自建 */
+export const MINDMEM_SELF_HOSTED_ENDPOINT = 'http://127.0.0.1:8000';
+
+export const DEFAULT_MINDMEM: MindMemSettings = {
+  enabled: false,
+  endpoint: MINDMEM_CLOUD_ENDPOINT,
+};
+
+export function resolveMindMem(settings?: Partial<AppSettings> | null): MindMemSettings {
+  const raw = (settings as { mindmem?: Partial<MindMemSettings> } | null)?.mindmem;
+  return {
+    ...DEFAULT_MINDMEM,
+    ...(raw ?? {}),
+    endpoint: (raw?.endpoint ?? '').trim() || DEFAULT_MINDMEM.endpoint,
   };
 }
 

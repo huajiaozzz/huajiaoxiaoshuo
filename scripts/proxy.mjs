@@ -25,7 +25,7 @@ const MAX_BODY = 32 * 1024 * 1024; // 32MB，够长上下文请求
  */
 const MODE = process.env.HUAJIAO_PROXY_MODE ?? "local";
 /** cloud 模式放行的域名（精确匹配或以点开头的后缀匹配） */
-const CLOUD_ALLOW = (process.env.HUAJIAO_PROXY_ALLOW ?? "api.hindsight.vectorize.io")
+const CLOUD_ALLOW = (process.env.HUAJIAO_PROXY_ALLOW ?? "api.hindsight.vectorize.io,mindmemos.cn")
   .split(",")
   .map((s) => s.trim().toLowerCase())
   .filter(Boolean);
