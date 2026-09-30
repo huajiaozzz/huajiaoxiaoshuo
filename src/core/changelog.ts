@@ -34,9 +34,31 @@ export const CHANGE_KIND_COLOR: Record<ChangeKind, "success" | "accent" | "warni
   fixed: "warning",
 };
 
-export const APP_VERSION = "0.10.0";
+export const APP_VERSION = "0.11.0";
 
 export const CHANGELOG: Release[] = [
+  {
+    version: "0.11.0",
+    date: "2026-09-30",
+    headline: "知识页、自动抽取与两条可选的本地增强",
+    changes: [
+      {
+        kind: "added",
+        items: [
+          "设定库新增「**知识页**」：人物小传、世界观总览、伏笔总览三页，由源数据自动组装；数据变了就标「已过期」，点一下更新。适合开着对照写作。",
+          "**保存后自动抽取**（设置 → 写作偏好，默认开启）：自动保存后，后台把本章新增的人物、世界观、伏笔、时间线抽出来入库 —— 新人物自动建卡、地点组织类名词自动建世界观条目、出场自动补上。15 分钟内只跑一次，失败静默跳过不打断写作。",
+          "**OpenViking 增强召回**（设置 → 写作记忆，可选）：本机装了 OpenViking 服务就连它做分级召回，记忆多时更准、送进模型的字更少；没装则走原来的本地链路。",
+          "**Laya 本地决策模型**（设置 → 写作记忆，可选）：本机起桥接服务后，口吻检查的问题定级由它逐条判定（info / warn / error / blocker），关着则统一记 warn。",
+        ],
+      },
+      {
+        kind: "fixed",
+        items: [
+          "Laya 设置块从隐私页搬到写作记忆页，和语义召回、OpenViking 待在一起。",
+        ],
+      },
+    ],
+  },
   {
     version: "0.10.0",
     date: "2026-09-29",
