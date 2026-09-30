@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "@/db/repo/settings
 import { db, ensureAppState } from "@/db/database";
 import { setLastOpened } from "@/db/repo/projects";
 import { setAuthorProfile } from "@/ai/prompts";
+import { checkForUpdate } from "./update-check";
 
 interface AppStore {
   ready: boolean;
@@ -56,6 +57,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
         const project = await db.projects.get(appState.lastProjectId);
         if (project) set({ project, chapterId: appState.lastChapterId });
       }
+      // 启动时顺手检查更新：有新版就弹一条通知，没新版/断网都不打扰
+      void checkForUpdate().then((info) => {
+        if (info.available) {
+          get().notify('info', `发现新版本 v${info.latest}`, '当前 v' + info.current + '，到「设置 → 关于」查看更新内容');
+        }
+      });
     } catch (e) {
       // ready 置真让 App 走到 initError 分支渲染错误页，而不是永远转圈
       set({ ready: true, initError: e instanceof Error ? e.message : String(e) });

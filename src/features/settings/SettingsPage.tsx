@@ -30,6 +30,7 @@ import { ActivationPanel } from "@/features/license/ActivationPanel";
 import { SETTINGS_SECTIONS, type SettingsSection } from "@/app/routes";
 import { ModelSelect } from "@/components/common/ModelSelect";
 import { APP_VERSION } from "@/core";
+import { checkForUpdate, type UpdateInfo } from "@/app/update-check";
 
 type Tab = SettingsSection | "memory";
 
@@ -1057,6 +1058,54 @@ function DataTab() {
   );
 }
 
+/**
+ * 检查更新：问 GitHub Releases 有没有新版，有就亮提示。
+ * 查不到（断网/限流）就安静显示当前版本，不弹错~
+ */
+function UpdateSection() {
+  const [state, setState] = useState<{ checking: boolean; info?: UpdateInfo; error?: string }>({
+    checking: false,
+  });
+
+  const run = async () => {
+    setState({ checking: true });
+    try {
+      const info = await checkForUpdate();
+      setState({ checking: false, info });
+    } catch (e) {
+      setState({ checking: false, error: e instanceof Error ? e.message : String(e) });
+    }
+  };
+
+  return (
+    <div className="mt-3 rounded-lg bg-black/[0.03] p-3 dark:bg-white/[0.05]">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs opacity-70">当前 v{APP_VERSION}</span>
+        <Button size="sm" variant="outline" isPending={state.checking} onPress={() => void run()}>
+          <RefreshCw className="size-3.5" />
+          检查更新
+        </Button>
+        {state.info?.available && (
+          <a
+            href={state.info.url}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-full bg-black px-3.5 py-1.5 text-xs font-medium text-white transition hover:opacity-85 dark:bg-white dark:text-black"
+          >
+            有新版本 v{state.info.latest}，去看看 ✨
+          </a>
+        )}
+      </div>
+      {state.info && !state.info.available && !state.info.note && (
+        <p className="mt-1.5 text-[11px] opacity-55">已经是最新版啦 (๑˃̵ᴗ˂̵)</p>
+      )}
+      {(state.info?.note ?? state.error) && (
+        <p className="mt-1.5 text-[11px] opacity-55">暂时查不到（{state.info?.note ?? state.error}），过会儿再试试哦~</p>
+      )}
+    </div>
+  );
+}
+
 function AboutTab() {
   return (
     <div className="space-y-4 text-sm">
@@ -1066,6 +1115,7 @@ function AboutTab() {
           为长篇小说写作而设计的本地优先工作台。结构化的设定库 + 精准的上下文组装 + 多模型可插拔，
           目标只有一个：让 AI 写出来的东西不用大改。
         </p>
+        <UpdateSection />
       </section>
       <section className="rounded-xl border border-black/8 p-4 text-xs leading-relaxed opacity-70 dark:border-white/10">
         <p>技术栈：React 19 · TypeScript · Tailwind CSS v4 · Vite 8 · Animate UI 组件（radix-ui + motion）· TipTap 3 · Zustand · Dexie(IndexedDB)</p>
