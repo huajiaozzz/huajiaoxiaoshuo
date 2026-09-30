@@ -1,7 +1,7 @@
 import type { ID, MemoryFact } from '@/core';
 import { loadSettings } from '@/db/repo/settings';
 import { resolveHindsight, type HindsightSettings } from '@/core/settings';
-import { detectProxy, getProxyBase, wrapWithProxy } from './proxy';
+import { detectSameOriginProxy, getForwardBase, wrapWithProxy } from './proxy';
 
 export function hindsightSettings(): HindsightSettings {
   return resolveHindsight(loadSettings());
@@ -43,9 +43,10 @@ function explainStatus(status: number): string {
 async function call<T>(cfg: HindsightSettings, path: string, init: RequestInit, timeoutMs: number): Promise<T> {
   const target = base(cfg) + path;
   // 云 API 不返回 CORS 头，浏览器直连会被拦（Failed to fetch）。
-  // 本地代理在跑就走它转发，没跑就直连试试（自建/反代加了 CORS 头的情况能直连成功）。
-  const proxy = await detectProxy();
-  const url = proxy.available ? wrapWithProxy(getProxyBase(), target) : target;
+  // 线上站点由服务器上的受限转发代劳（只放行 Hindsight 域名），本机开发走本地代理 ——
+  // 访客不用配任何东西，填个 key 就能用。
+  await detectSameOriginProxy();
+  const url = wrapWithProxy(getForwardBase(), target);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -54,9 +55,8 @@ async function call<T>(cfg: HindsightSettings, path: string, init: RequestInit, 
     return (await res.json()) as T;
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') throw new Error('请求超时');
-    // 直连失败且代理没开：把「该怎么办」直接写进错误里
-    if (!proxy.available && e instanceof TypeError) {
-      throw new Error('浏览器直连被拦（云 API 无 CORS）—— 先在本机跑 npm run proxy，再回来测试');
+    if (e instanceof TypeError) {
+      throw new Error('转发没打通（' + getForwardBase() + '）—— 确认本地代理在跑，或改用直连');
     }
     throw e;
   } finally {

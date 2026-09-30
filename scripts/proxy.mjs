@@ -13,8 +13,33 @@
 import { createServer } from "node:http";
 
 const PORT = Number(process.argv[2] ?? process.env.HUAJIAO_PROXY_PORT ?? 8788);
-const HOST = "127.0.0.1";
+const HOST = process.env.HUAJIAO_PROXY_HOST ?? "127.0.0.1";
 const MAX_BODY = 32 * 1024 * 1024; // 32MB，够长上下文请求
+
+/**
+ * 允许的转发目标模式：
+ *  - local（默认）：公网任意模型服务 + 本机常见模型端口。只在本机用，别暴露出去。
+ *  - cloud：**只放行白名单域名**（Hindsight 云记忆等），可以安全地放到公网给访客用 ——
+ *           访客浏览器直连云 API 会被 CORS 拦，由这台服务器替他们转发。
+ *  - any：全放行（危险，只在完全受信的私网里用）。
+ */
+const MODE = process.env.HUAJIAO_PROXY_MODE ?? "local";
+/** cloud 模式放行的域名（精确匹配或以点开头的后缀匹配） */
+const CLOUD_ALLOW = (process.env.HUAJIAO_PROXY_ALLOW ?? "api.hindsight.vectorize.io")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+/**
+ * 额外的 Origin 白名单（逗号分隔的完整 Origin，如 https://huajiaoxiezuo.reshui.xin）。
+ * 给线上站点用：只有这些来源的网页能经本代理发请求，其它网页一律拒绝，
+ * 防止代理被别的站点当成免费转发器。留空则沿用"只允许本机来源"的老行为。
+ */
+const EXTRA_ORIGINS = new Set(
+  (process.env.HUAJIAO_PROXY_ORIGINS ?? "")
+    .split(",")
+    .map((s) => s.trim().replace(/\/+$/, ""))
+    .filter(Boolean),
+);
 
 /** 只允许转发到这些协议与主机，避免被当成通用 SSRF 跳板 */
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
@@ -47,10 +72,17 @@ function isBlockedNonPublic(host) {
   return false;
 }
 
+function hostInCloudAllow(host) {
+  const h = host.toLowerCase();
+  return CLOUD_ALLOW.some((d) => h === d || h.endsWith("." + d));
+}
+
 function isAllowedTarget(url) {
   if (!ALLOWED_PROTOCOLS.has(url.protocol)) return false;
   const host = url.hostname;
   const port = Number(url.port || (url.protocol === "https:" ? 443 : 80));
+  if (MODE === "any") return true;
+  if (MODE === "cloud") return hostInCloudAllow(host);
   const isLoopback =
     host === "localhost" || host === "::1" || host === "[::1]" || /^127\./.test(host);
   if (isLoopback) {
@@ -63,15 +95,17 @@ function isAllowedTarget(url) {
 
 /**
  * 浏览器跨站请求会带 Origin；本机应用是 127.0.0.1/localhost。
- * 无 Origin（curl / 服务端）放行；其它 Origin 一律拒绝，
- * 防止任意网页经本代理读内网。
+ * 无 Origin（curl / 服务端）放行；本机来源放行；
+ * 配置了 HUAJIAO_PROXY_ORIGINS 时，白名单里的线上站点也放行 ——
+ * 其余一律拒绝，防止任意网页经本代理读内网或蹭转发。
  */
 function isAllowedOrigin(req) {
   const origin = req.headers.origin;
   if (!origin) return true;
   try {
     const o = new URL(origin);
-    return o.hostname === "127.0.0.1" || o.hostname === "localhost" || o.hostname === "[::1]";
+    if (o.hostname === "127.0.0.1" || o.hostname === "localhost" || o.hostname === "[::1]") return true;
+    return EXTRA_ORIGINS.has(o.origin);
   } catch {
     return false;
   }

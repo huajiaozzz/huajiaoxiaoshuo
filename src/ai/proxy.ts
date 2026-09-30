@@ -105,9 +105,50 @@ export function proxyEndpoint(base: string): string {
   return base.replace(/\/+$/, "") + "/proxy";
 }
 
-/** 把目标地址包成代理请求地址 */
+/**
+ * 把目标地址包成代理请求地址。
+ * base 为空串时（站点同源转发）返回相对路径 /proxy?url=…
+ */
 export function wrapWithProxy(base: string, target: string): string {
-  return proxyEndpoint(base) + "?url=" + encodeURIComponent(target);
+  const prefix = base === '' ? '' : base.replace(/\/+$/, '');
+  return prefix + '/proxy?url=' + encodeURIComponent(target);
+}
+
+/**
+ * 这次请求该走哪条转发路径。
+ *
+ * 优先级：手动填过「代理基地址」→ 用它（本机开发、自建服务器）；
+ * 否则站点自己带了 /proxy（线上部署了受限转发）→ 用同源那条，
+ * 访客什么都不用配，填个 key 就能用；都没有 → 空串，调用方直连试试。
+ *
+ * 同源 /proxy 的探活一次会话只做一次（它不会中途出现或消失）。
+ */
+let sameOriginProxy: boolean | null = null;
+
+export async function detectSameOriginProxy(): Promise<boolean> {
+  if (sameOriginProxy !== null) return sameOriginProxy;
+  try {
+    const res = await fetch('/proxy/health');
+    const body = (await res.json().catch(() => ({}))) as { service?: string };
+    sameOriginProxy = res.ok && body.service === 'huajiao-proxy';
+  } catch {
+    sameOriginProxy = false;
+  }
+  return sameOriginProxy;
+}
+
+/**
+ * 返回用于转发的基地址；空串 = 直连。
+ * 需要先 await detectSameOriginProxy()（同源探测是异步的）。
+ */
+export function getForwardBase(): string {
+  try {
+    const manual = localStorage.getItem(PROXY_BASE_KEY);
+    if (manual) return manual.replace(/\/+$/, '');
+  } catch {
+    /* 隐私模式读不了，当作没配 */
+  }
+  return sameOriginProxy ? '' : DEFAULT_PROXY_BASE;
 }
 
 export { DEFAULT_PROXY_BASE };
