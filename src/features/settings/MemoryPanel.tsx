@@ -1181,7 +1181,10 @@ function HindsightSection({
         适合写系列文、跨书复用设定。
       </p>
       <p className="mt-1 text-[11px] leading-relaxed opacity-65">
-        需要去 Hindsight 后台注册拿 key（hsk_ 开头）并建一个 bank 填到下面。
+        需要登录 Hindsight Cloud（docs.hindsight.vectorize.io），在顶部 <b>Connect</b> 页面
+        创建 API Key（hsk_ 开头，只显示一次），再建一个记忆库把 bank id 填到下面。
+        云 API 不返回跨域头，浏览器直连会被拦 —— 先在本机跑一次 <code>npm run proxy</code>，
+        它会把请求转出去（Key 只在本机内存过一遍，不写盘）。
         注意这是云服务：同步会把记忆文本发出去，和本地优先冲突，介意就别开。
         没配好、连不上 —— 都会静默退回原来的召回链路，写作不受影响。
       </p>
