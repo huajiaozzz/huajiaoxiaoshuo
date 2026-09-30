@@ -34,9 +34,40 @@ export const CHANGE_KIND_COLOR: Record<ChangeKind, "success" | "accent" | "warni
   fixed: "warning",
 };
 
-export const APP_VERSION = "0.12.0";
+export const APP_VERSION = "0.13.0";
 
 export const CHANGELOG: Release[] = [
+  {
+    version: "0.13.0",
+    date: "2026-10-01",
+    headline: "记忆系统可插拔：三套可选的长期记忆",
+    changes: [
+      {
+        kind: "added",
+        items: [
+          "**MindMemOS 记忆系统**（设置 → 写作记忆，可选）：开源记忆操作系统（华为诺亚方舟），用它自动抽取、去重、合并记忆。支持**官方云**（mindmemos.cn 申请 Key，填了就能用）与**本地自建**（127.0.0.1:8000）两种用法；记忆归属默认按书隔离，填固定值可跨书共用偏好。",
+          "**OpenViking 支持官方托管**：可直接用**火山引擎 OpenViking Context**（api.vikingdb.cn-beijing.volces.com），在火山控制台开通、建库、拿 API Key 填进来即可；也可以继续用本地自建的 openviking-server，一键切换。",
+          "**Hindsight 云记忆**（设置 → 写作记忆，可选）：跨书长期记忆 + 自动归纳去重，适合写系列文；要 hsk_ 类型的 Key 与自建 bank。",
+          "**授权页新增版本与价格**：免费版 0 元（普通功能全免费、不含 AI）、Pro 版 368 元（全功能不限）、私有化部署版 1688 元（送独立授权管理后台）。",
+          "**关于页新增「检查更新」**：一键查 GitHub 有没有新版本，有新版直接给下载入口；应用启动时也会悄悄检查一次，只有真有新版才提示。",
+        ],
+      },
+      {
+        kind: "improved",
+        items: [
+          "**云端记忆开箱即用**：云端记忆服务（Hindsight / MindMemOS）大多不支持浏览器跨域，现在线上站点自带受限转发（只放行这两个域名、只服务本站），访客填个 Key 就能用，不用自己装代理。",
+          "记忆系统选择更透明：写作记忆页顶部新增「记忆系统怎么选」总览，逐个说明每套系统适合什么、弊端是什么。",
+        ],
+      },
+      {
+        kind: "fixed",
+        items: [
+          "章节属性弹窗与供应商编辑弹窗此前会卡死（退场断交互的开关写反了），现已修复。",
+          "本地语义召回关闭时，外挂记忆系统（OpenViking / Hindsight / MindMemOS）不会被调用的问题已修复。",
+        ],
+      },
+    ],
+  },
   {
     version: "0.12.0",
     date: "2026-09-30",

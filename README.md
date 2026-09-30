@@ -7,6 +7,7 @@
 - UI：Animate UI（弹窗/气泡/按钮/数字等动画原语，源码在 `src/components/animate-ui`）+ 自研控件 `src/components/kit`，动效引擎 motion
 - 存储：浏览器 IndexedDB（Dexie），**数据不出本机**；可导出 JSON 全量备份
 - 模型：DeepSeek / OpenAI / Kimi / 智谱 / 通义 / 硅基流动 / OpenRouter / Ollama / LM Studio / 任意 OpenAI 兼容服务
+- 桌面端：Tauri 2（Mac / Windows），与网页版同一份构建产物
 
 ## 快速开始
 
@@ -24,6 +25,21 @@ npm run dev            # http://127.0.0.1:5178
 node scripts/mock-llm.mjs 8765   # 启动本地假模型
 # 然后在设置里新增供应商：名称任意，地址 http://127.0.0.1:8765/v1，模型 mock-story-model
 ```
+
+## 写作记忆（可插拔）
+
+默认只用**本地写作记忆**：你能看见每一条、知道出处、能改能删能暂停，不做黑箱。
+记忆多了之后可以在「设置 → 写作记忆」按需挂外挂，全部默认关闭、连不上就静默退回本地链路：
+
+| 系统 | 用途 | 怎么用 |
+|---|---|---|
+| 语义召回 | 按「当前在写什么」找最相关的记忆 | 一键启用，需要本机 Ollama 或支持 /embeddings 的供应商 |
+| OpenViking | 分级存放 + 目录式检索，记忆很多时更准更省 token | 用**火山引擎托管版**（控制台开通、建库、填 API Key）或本地自建 `openviking-server` |
+| MindMemOS | 开源记忆操作系统，自动抽取 / 去重 / 合并 | 官方云 `mindmemos.cn` 申请 Key，或本地自建（`make dev`，默认 :8000） |
+| Hindsight | 跨书长期记忆 + 自动归纳，适合系列文 | 云端申请 Key + 建 bank |
+
+云端记忆大多不支持浏览器跨域，线上站点自带受限转发（只放行这些记忆服务域名、只服务本站），
+填个 Key 就能用；本机开发时跑 `npm run proxy` 即可。数据流向始终是「浏览器 → 你的转发 → 目标服务」。
 
 ## 目录结构
 
@@ -53,6 +69,9 @@ docs/          GOTCHAS（陷阱与约定）
 | `npm run verify:ebook` | EPUB / DOCX 格式校验 |
 | `npm run mock-llm` | 启动本地假模型（无需 API Key） |
 | `npm run e2e:ai` | AI 链路端到端 |
+| `npm run proxy` | 本地转发（给不支持 CORS 的模型/记忆服务用） |
+| `npm run release` | 按更新日志发 GitHub Release（含 tag） |
+| `npm run tauri:build` | 打包 Mac / Windows 桌面端 |
 | `npm run lint` | oxlint |
 
 ## 支持的导出格式
