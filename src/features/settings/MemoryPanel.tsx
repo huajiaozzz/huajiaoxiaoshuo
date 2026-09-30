@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Button, Chip, Input, Switch, TextArea } from "@/components/kit";
 import {
   Brain, Check, Lightbulb, Pin, PinOff, Plus, RefreshCw, Sparkles, Trash2,
-  EyeOff, Eye, AlertTriangle, BookMarked, Quote, GitMerge, X, Radar,
+  EyeOff, Eye, AlertTriangle, BookMarked, Quote, GitMerge, X, Radar, Copy, Zap, CircleHelp,
 } from "lucide-react";
 import type { ID, MemoryEffect, MemoryFact, MemoryKind, ProviderConfig, SemanticRecallSettings, VikingSettings, LayaSettings } from "@/core";
 import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall, resolveViking, resolveLaya } from "@/core";
@@ -238,6 +238,7 @@ export function MemoryPanel() {
 
   return (
     <div className="space-y-5">
+      <MemorySystemsGuide />
       {openConflicts.length > 0 && (
         <section className="rounded-xl border border-amber-500/40 bg-amber-500/[0.06] p-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -645,6 +646,86 @@ function ConflictSide({ label, text }: { label: string; text: string }) {
   );
 }
 
+/** 复制到剪贴板：失败就弹提示，不静默 */
+async function copyText(
+  text: string,
+  notify: (kind: "info" | "success" | "warning" | "danger", text: string, detail?: string) => void,
+) {
+  try {
+    await navigator.clipboard.writeText(text);
+    notify("success", "已复制", text.slice(0, 80));
+  } catch {
+    notify("warning", "复制失败", "请手动复制：" + text.slice(0, 80));
+  }
+}
+
+/**
+ * 记忆系统总览：一句话说清每个是干嘛的、弊端在哪。
+ * 本地记忆开箱即用零成本；另外三个都是可选外挂，默认全关，
+ * 没装、没开、连不上都会静默退回原链路，写作不受影响。
+ */
+function MemorySystemsGuide() {
+  const items = [
+    {
+      name: "本地写作记忆",
+      tag: "开箱即用",
+      good: "你能看见每一条、知道出处、能改能删能暂停，不做黑箱。",
+      bad: "弊端：条数多了按可信度排序会不准，无关但可信的会挤掉相关的。",
+    },
+    {
+      name: "语义召回",
+      tag: "可选",
+      good: "按“当前在写什么”找最相关的记忆，记忆多时更准。",
+      bad: "弊端：要装 Ollama + 下向量模型（几百 MB），首次补向量稍慢；换模型要重算。",
+    },
+    {
+      name: "OpenViking",
+      tag: "可选",
+      good: "分级存放人物/世界观/设定，几百条以上时更准、送进模型的字更少。",
+      bad: "弊端：要另装服务常驻内存（约几百 MB），刚同步完索引有延迟。",
+    },
+    {
+      name: "Laya",
+      tag: "可选",
+      good: "只做判断不写文，口吻/严重度定级更细。",
+      bad: "弊端：要起桥接服务，需要本机 Python + 模型，判定多一次网络耗时。",
+    },
+    {
+      name: "Hindsight",
+      tag: "规划中",
+      good: "跨书长期记忆 + 自动归纳，适合写系列文。",
+      bad: "弊端：自建 Docker 常驻约 0.5~1.5G 内存，对小白最麻烦，暂不推荐。",
+    },
+  ];
+  return (
+    <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
+      <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+        <CircleHelp className="size-4 opacity-60" />
+        记忆系统怎么选
+      </h2>
+      <p className="mt-1 text-xs leading-relaxed opacity-65">
+        默认只用「本地写作记忆」就够写完一本书。下面三个外挂都是点一下「一键启用」就行，
+        没装服务会自动告诉你差哪一步，不会弹错打断写作。
+      </p>
+      <div className="mt-2.5 space-y-1.5">
+        {items.map((it) => (
+          <div
+            key={it.name}
+            className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-lg bg-black/[0.03] px-2.5 py-1.5 dark:bg-white/[0.04]"
+          >
+            <span className="text-xs font-medium">{it.name}</span>
+            <Chip size="sm" color={it.tag === "开箱即用" ? "success" : it.tag === "规划中" ? "warning" : "default"}>
+              {it.tag}
+            </Chip>
+            <span className="w-full text-[11px] leading-relaxed opacity-70">{it.good}</span>
+            <span className="w-full text-[11px] leading-relaxed opacity-55">{it.bad}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /**
  * 语义召回设置。
  *
@@ -676,6 +757,30 @@ function SemanticRecallSection({
     }
   };
 
+  /** 一键启用：填好本地默认值并测试，缺哪步直接告诉作者 */
+  const oneKeyEnable = async () => {
+    const next: SemanticRecallSettings = {
+      ...recall,
+      enabled: true,
+      source: "ollama",
+      endpoint: "http://127.0.0.1:11434/api/embeddings",
+      model: recall.model?.trim() || "nomic-embed-text",
+      topK: recall.topK > 0 ? recall.topK : 8,
+    };
+    updateSettings({ semanticRecall: next });
+    setTesting(true);
+    try {
+      const res = await probeEmbedding(next);
+      notify(
+        res.ok ? "success" : "warning",
+        res.ok ? "语义召回已启用" : "已启用，但向量服务还没通",
+        res.ok ? "和当前章节最相关的记忆会被优先注入" : res.message + " —— 已退回规则排序，装好 Ollama 后点“测试向量服务”即可",
+      );
+    } finally {
+      setTesting(false);
+    }
+  };
+
   return (
     <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -689,6 +794,17 @@ function SemanticRecallSection({
             会挤掉那条真正相关的。打开后，系统用向量找出「和当前正在写的内容最相关」的记忆，
             与原来的排序结果合并去重后注入；置顶的记忆永远注入。
           </p>
+          <p className="mt-1 text-[11px] leading-relaxed opacity-55">
+            弊端：要装 Ollama 并下载向量模型（几百 MB），首次补向量稍慢；换模型会让缓存失效重算。介意折腾就别开，本地记忆完全够用。
+          </p>
+          {!recall.enabled && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button size="sm" variant="primary" isPending={testing} onPress={() => void oneKeyEnable()}>
+                <Zap className="size-3.5" />
+                一键启用本地语义召回
+              </Button>
+            </div>
+          )}
         </div>
         <Switch
           isSelected={recall.enabled}
@@ -811,6 +927,7 @@ function SemanticRecallSection({
         )}
         <VikingSection settings={settings} updateSettings={updateSettings} notify={notify} />
         <LayaSection settings={settings} updateSettings={updateSettings} notify={notify} />
+        <HindsightSection notify={notify} />
       </div>
     </section>
   );
@@ -837,6 +954,23 @@ function VikingSection({
     }
   };
 
+  /** 一键启用：填默认地址并测试，没装会提示复制命令安装 */
+  const oneKeyEnable = async () => {
+    const next = { ...vk, enabled: true, endpoint: "http://127.0.0.1:1933" };
+    updateSettings({ viking: next });
+    setTesting(true);
+    try {
+      const res = await probeViking(next);
+      notify(
+        res.ok ? "success" : "warning",
+        res.ok ? "OpenViking 已启用" : "已启用，但还没连上服务",
+        res.ok ? "记忆多时会自动走分级召回" : "请先启动服务：复制下面的安装命令到终端跑一次，再点“测试连接”",
+      );
+    } finally {
+      setTesting(false);
+    }
+  };
+
   return (
     <div className="mt-3 rounded-lg border border-black/8 p-3 dark:border-white/10">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -851,16 +985,31 @@ function VikingSection({
         </Switch>
       </div>
       <p className="mt-1.5 text-[11px] leading-relaxed opacity-65">
-        OpenViking 是一个开源的记忆服务：它把记忆按"人物 / 世界观 / 设定"分级存放，
+        OpenViking 是一个开源的记忆服务：它把记忆按“人物 / 世界观 / 设定”分级存放，
         召回时先定位到相关的那一枝、再往下细找。记忆特别多（几百条以上）时，
         它比本地向量召回更准、送进模型的字也更少。
       </p>
       <p className="mt-1 text-[11px] leading-relaxed opacity-65">
-        需要你自己先装好并启动它（`uv tool install openviking`，然后 `openviking-server`，
-        默认地址就是下面的 1933 端口；文档在 docs.openviking.net）。没装、没开、
-        连不上 —— 都会静默退回原来的召回链路，写作不受任何影响。
+        弊端：要另装一个常驻服务占内存，刚同步完索引有延迟；只有记忆很多时才值得开，平时完全可以关掉。
+        没装、没开、连不上 —— 都会静默退回原来的召回链路，写作不受任何影响。
         开启后本项目的记忆会被同步一份到它的 `huajiao/你的项目` 目录下，仅存你自己的机器上。
       </p>
+      {!vk.enabled && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button size="sm" variant="primary" isPending={testing} onPress={() => void oneKeyEnable()}>
+            <Zap className="size-3.5" />
+            一键启用
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onPress={() => void copyText("uv tool install openviking && openviking-server", notify)}
+          >
+            <Copy className="size-3.5" />
+            复制安装命令
+          </Button>
+        </div>
+      )}
       <div className={"mt-2 flex flex-wrap items-center gap-2 " + (vk.enabled ? "" : "opacity-50")}>
         <label className="flex items-center gap-1 text-[11px] opacity-70">
           服务地址
@@ -913,6 +1062,23 @@ function LayaSection({
     }
   };
 
+  /** 一键启用：填默认地址并测试，没起服务会提示复制命令 */
+  const oneKeyEnable = async () => {
+    const next = { ...ly, enabled: true, endpoint: "http://127.0.0.1:1945" };
+    updateSettings({ laya: next });
+    setTesting(true);
+    try {
+      const res = await probeLaya(next);
+      notify(
+        res.ok ? "success" : "warning",
+        res.ok ? "Laya 已启用" : "已启用，但还没连上服务",
+        res.ok ? "口吻检查会逐条定级" : "请先起桥接服务：复制下面的命令跑一次，再点“测试连接”",
+      );
+    } finally {
+      setTesting(false);
+    }
+  };
+
   return (
     <div className="mt-3 rounded-lg border border-black/8 p-3 dark:border-white/10">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -927,14 +1093,29 @@ function LayaSection({
         </Switch>
       </div>
       <p className="mt-1.5 text-[11px] leading-relaxed opacity-65">
-        Laya 是跑在本机的决策模型：不写文章，只做判断 —— 比如口吻检查里"这句台词走样有多严重"，
+        Laya 是跑在本机的决策模型：不写文章，只做判断 —— 比如口吻检查里“这句台词走样有多严重”，
         开启后由它逐条定级（info / warn / error / blocker），关着则统一记 warn。
       </p>
       <p className="mt-1 text-[11px] leading-relaxed opacity-65">
-        需要你先在本机起桥接服务（`python scripts/laya-bridge.py`，用装有 laya 的 Python，
-        默认地址就是下面的 1945 端口）。没起、连不上 —— 判定自动退回固定值，检查本身不受影响。
-        判定时只发送问题描述，不含正文。
+        弊端：要另起桥接服务，需要本机 Python + 模型，第一次装稍麻烦；每次判定多一次网络耗时。
+        没起、连不上 —— 判定自动退回固定值，检查本身不受影响。判定时只发送问题描述，不含正文。
       </p>
+      {!ly.enabled && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button size="sm" variant="primary" isPending={testing} onPress={() => void oneKeyEnable()}>
+            <Zap className="size-3.5" />
+            一键启用
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onPress={() => void copyText("python scripts/laya-bridge.py", notify)}
+          >
+            <Copy className="size-3.5" />
+            复制启动命令
+          </Button>
+        </div>
+      )}
       <div className={"mt-2 flex flex-wrap items-center gap-2 " + (ly.enabled ? "" : "opacity-50")}>
         <label className="flex items-center gap-1 text-[11px] opacity-70">
           服务地址
@@ -952,6 +1133,50 @@ function LayaSection({
       {lastLayaError() ? (
         <p className="mt-1 text-[10px] leading-relaxed opacity-50">上次调用失败：{lastLayaError()}</p>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Hindsight 预告：还没接进来，先把说明和弊端讲清楚，免得作者乱装。
+ * 自建 Docker 常驻约 0.5~1.5G 内存，对写作者来说最麻烦，所以默认不做；
+ * 真要上也会做成和 Viking 一样的“一键启用 + 静默降级”。
+ */
+function HindsightSection({
+  notify,
+}: {
+  notify: (kind: "info" | "success" | "warning" | "danger", text: string, detail?: string) => void;
+}) {
+  return (
+    <div className="mt-3 rounded-lg border border-dashed border-black/15 p-3 dark:border-white/15">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium">Hindsight 长期记忆（规划中）</p>
+        <Chip size="sm" color="warning">
+          暂未接入
+        </Chip>
+      </div>
+      <p className="mt-1.5 text-[11px] leading-relaxed opacity-65">
+        说明：一本书一个记忆库，自动归纳人物关系和伏笔，适合写系列文、跨书复用设定。
+      </p>
+      <p className="mt-1 text-[11px] leading-relaxed opacity-65">
+        弊端：自建要装 Docker 并常驻约 0.5~1.5G 内存，还要配模型 Key；云版要把正文发出去，和本地优先冲突。
+        所以现在不推荐折腾 —— 本地记忆 + 语义召回已经够用。接入后也会是一键启用，连不上自动退回。
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onPress={() =>
+            void copyText(
+              "docker run -p 8888:8888 -p 9999:9999 -v hindsight-data:/home/hindsight/.pg0 ghcr.io/vectorize-io/hindsight:latest",
+              notify,
+            )
+          }
+        >
+          <Copy className="size-3.5" />
+          复制自建命令（尝鲜用）
+        </Button>
+      </div>
     </div>
   );
 }
