@@ -194,6 +194,49 @@ export function resolveLaya(settings?: Partial<AppSettings> | null): LayaSetting
   };
 }
 
+/**
+ * 当前生效的「记忆召回引擎」。
+ *
+ * 为什么是单选：四套东西（本地向量 / OpenViking / MindMemOS / Hindsight）解决的
+ * 是同一个问题 —— "这次该注入哪几条记忆"。同时开多个不会更准，只会变成
+ * "谁先命中谁说了算"，还白打几次云服务。所以界面上让作者选一个，配置都保留。
+ *
+ * 老数据可能开了多个：按固定优先级取一个（与历史上后端的尝试顺序一致），
+ * 界面上会提示，点一下任意卡片就规范化了。
+ */
+export type RecallEngine = 'off' | 'local' | 'viking' | 'mindmem' | 'hindsight';
+
+export function resolveRecallEngine(settings?: Partial<AppSettings> | null): RecallEngine {
+  const s = settings ?? {};
+  if (resolveViking(s).enabled) return 'viking';
+  if (resolveMindMem(s).enabled) return 'mindmem';
+  if (resolveHindsight(s).enabled) return 'hindsight';
+  if (resolveSemanticRecall(s).enabled) return 'local';
+  return 'off';
+}
+
+/** 切换引擎：所有配置原样保留，只有 enabled 互斥 */
+export function recallEnginePatch(
+  engine: RecallEngine,
+  settings?: Partial<AppSettings> | null,
+): Pick<AppSettings, 'semanticRecall' | 'viking' | 'mindmem' | 'hindsight'> {
+  const s = settings ?? {};
+  return {
+    semanticRecall: { ...resolveSemanticRecall(s), enabled: engine === 'local' },
+    viking: { ...resolveViking(s), enabled: engine === 'viking' },
+    mindmem: { ...resolveMindMem(s), enabled: engine === 'mindmem' },
+    hindsight: { ...resolveHindsight(s), enabled: engine === 'hindsight' },
+  };
+}
+
+export const RECALL_ENGINE_LABEL: Record<RecallEngine, string> = {
+  off: '关闭',
+  local: '本地向量',
+  viking: 'OpenViking',
+  mindmem: 'MindMemOS',
+  hindsight: 'Hindsight',
+};
+
 // ---------- MindMemOS 记忆系统（可选，默认关闭） ----------
 export interface MindMemSettings {
   /**

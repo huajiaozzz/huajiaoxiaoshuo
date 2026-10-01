@@ -34,9 +34,24 @@ export const CHANGE_KIND_COLOR: Record<ChangeKind, "success" | "accent" | "warni
   fixed: "warning",
 };
 
-export const APP_VERSION = "0.13.0";
+export const APP_VERSION = "0.13.1";
 
 export const CHANGELOG: Release[] = [
+  {
+    version: "0.13.1",
+    date: "2026-10-01",
+    headline: "记忆召回改成单选引擎，不再互相抢答",
+    changes: [
+      {
+        kind: "improved",
+        items: [
+          "**记忆召回引擎改成单选**（设置 → 写作记忆）：关闭 / 本地向量 / OpenViking / MindMemOS / Hindsight，一次只生效一个。以前同时开多个是「谁先命中谁说了算」，还可能一次生成白打几次云服务；现在点一下切换，配置全部保留、随时切回来。",
+          "「每次召回条数」从本地向量配置里提出来，成了引擎通用的设置 —— 以前只开外挂时，改条数得去一个看起来没启用的地方。",
+          "记忆系统总览更新：标明哪几个是召回引擎（单选）、哪几个是独立能力（Laya 定级可以同时用）。",
+        ],
+      },
+    ],
+  },
   {
     version: "0.13.0",
     date: "2026-10-01",

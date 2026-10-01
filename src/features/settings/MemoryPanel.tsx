@@ -4,8 +4,8 @@ import {
   Brain, Check, Lightbulb, Pin, PinOff, Plus, RefreshCw, Sparkles, Trash2,
   EyeOff, Eye, AlertTriangle, BookMarked, Quote, GitMerge, X, Radar, Copy, Zap, CircleHelp,
 } from "lucide-react";
-import type { ID, MemoryEffect, MemoryFact, MemoryKind, ProviderConfig, SemanticRecallSettings, VikingSettings, LayaSettings, HindsightSettings, MindMemSettings } from "@/core";
-import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall, resolveViking, resolveLaya, resolveHindsight, resolveMindMem, VIKING_CLOUD_ENDPOINT, VIKING_SELF_HOSTED_ENDPOINT, MINDMEM_CLOUD_ENDPOINT, MINDMEM_SELF_HOSTED_ENDPOINT } from "@/core";
+import type { ID, MemoryEffect, MemoryFact, MemoryKind, ProviderConfig, SemanticRecallSettings, VikingSettings, LayaSettings, HindsightSettings, MindMemSettings, RecallEngine } from "@/core";
+import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall, resolveViking, resolveLaya, resolveHindsight, resolveMindMem, resolveRecallEngine, recallEnginePatch, RECALL_ENGINE_LABEL, VIKING_CLOUD_ENDPOINT, VIKING_SELF_HOSTED_ENDPOINT, MINDMEM_CLOUD_ENDPOINT, MINDMEM_SELF_HOSTED_ENDPOINT } from "@/core";
 import { useAppStore } from "@/app/store";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -595,7 +595,10 @@ export function MemoryPanel() {
         )}
       </section>
 
-      <SemanticRecallSection settings={settings} updateSettings={updateSettings} notify={notify} />
+      <RecallEngineSection settings={settings} updateSettings={updateSettings} notify={notify} />
+
+      {/* Laya 不是召回引擎：它给检查结果定级，和记忆召回并列但各管各的 */}
+      <LayaSection settings={settings} updateSettings={updateSettings} notify={notify} />
 
       {memories.length > 0 && (
         <section className="rounded-xl border border-rose-500/30 bg-rose-500/[0.04] p-4">
@@ -663,7 +666,7 @@ async function copyText(
 
 /**
  * 记忆系统总览：一句话说清每个是干嘛的、弊端在哪。
- * 本地记忆开箱即用零成本；另外三个都是可选外挂，默认全关，
+ * 本地记忆开箱即用零成本；召回引擎四选一（或关闭），默认关闭，
  * 没装、没开、连不上都会静默退回原链路，写作不受影响。
  */
 function MemorySystemsGuide() {
@@ -672,35 +675,35 @@ function MemorySystemsGuide() {
       name: "本地写作记忆",
       tag: "开箱即用",
       good: "你能看见每一条、知道出处、能改能删能暂停，不做黑箱。",
-      bad: "弊端：条数多了按可信度排序会不准，无关但可信的会挤掉相关的。",
+      bad: "弊端：条数多了按可信度排序会不准，无关但可信的会挤掉相关的 —— 这时才需要下面的召回引擎。",
     },
     {
-      name: "语义召回",
-      tag: "可选",
-      good: "按“当前在写什么”找最相关的记忆，记忆多时更准。",
+      name: "本地向量（召回引擎）",
+      tag: "单选",
+      good: "按“当前在写什么”找最相关的记忆；数据不出本机。",
       bad: "弊端：要装 Ollama + 下向量模型（几百 MB），首次补向量稍慢；换模型要重算。",
     },
     {
-      name: "OpenViking",
-      tag: "可选",
+      name: "OpenViking（召回引擎）",
+      tag: "单选",
       good: "分级存放人物/世界观/设定，几百条以上时更准、送进模型的字更少。",
-      bad: "弊端：要另装服务常驻内存（约几百 MB），刚同步完索引有延迟。",
+      bad: "弊端：用火山托管要开通服务并配方舟凭证；自建要另装常驻服务。",
     },
     {
-      name: "Laya",
+      name: "Laya（不是召回引擎）",
       tag: "可选",
-      good: "只做判断不写文，口吻/严重度定级更细。",
+      good: "只做判断不写文，给口吻/严重度定级。和记忆召回各管各的，可以同时用。",
       bad: "弊端：要起桥接服务，需要本机 Python + 模型，判定多一次网络耗时。",
     },
     {
-      name: "MindMemOS",
-      tag: "可选",
+      name: "MindMemOS（召回引擎）",
+      tag: "单选",
       good: "开源记忆操作系统（华为诺亚方舟）：官方云或本地自建都能用，自动抽取、去重、合并记忆。",
       bad: "弊端：云端会把记忆文本发出去；本地自建要 Docker 起 Qdrant/Neo4j 一堆依赖，较重。",
     },
     {
-      name: "Hindsight",
-      tag: "可选",
+      name: "Hindsight（召回引擎）",
+      tag: "单选",
       good: "云端长期记忆 + 自动归纳去重，适合写系列文、跨书复用设定。",
       bad: "弊端：要注册拿 key + 自建 bank；记忆文本会发到云端，和本地优先冲突，介意就别开。",
     },
@@ -712,8 +715,8 @@ function MemorySystemsGuide() {
         记忆系统怎么选
       </h2>
       <p className="mt-1 text-xs leading-relaxed opacity-65">
-        默认只用「本地写作记忆」就够写完一本书。下面三个外挂都是点一下「一键启用」就行，
-        没装服务会自动告诉你差哪一步，不会弹错打断写作。
+        默认只用「本地写作记忆」就够写完一本书。记忆多到排序不灵时，再去下面的「记忆召回引擎」里挑一个
+        （一次只选一个，别同时开）；换引擎不会丢配置，随时切回来。Laya 是另一回事，它给检查结果定级。
       </p>
       <div className="mt-2.5 space-y-1.5">
         {items.map((it) => (
@@ -741,11 +744,115 @@ function MemorySystemsGuide() {
  * 这不是偷懒 —— embedding 服务要么要装 Ollama，要么要一个支持 /embeddings 的供应商，
  * 对多数作者来说这就是"没有"。所以这条路径必须在任何异常下一个错都不出、一秒都不多等。
  */
-function SemanticRecallSection({
+/**
+ * 记忆召回引擎（单选）。
+ *
+ * 四套东西解决的是同一个问题："这次该注入哪几条记忆"。
+ * 同时开多个不会更准 —— 只会变成"谁先命中谁说了算"，还白打几次云服务。
+ * 所以这里让作者选一个；其余配置原样保留，随时能切回来。
+ */
+const ENGINE_OPTIONS: { id: RecallEngine; label: string; desc: string }[] = [
+  { id: "off", label: "关闭", desc: "只用规则排序：置顶 + 可信度。零额外请求。" },
+  { id: "local", label: "本地向量", desc: "本机算相似度；要装 Ollama 或配一个支持 /embeddings 的供应商。" },
+  { id: "viking", label: "OpenViking", desc: "分级存放 + 目录式检索；记忆多时更准、送进模型的字更少。" },
+  { id: "mindmem", label: "MindMemOS", desc: "独立记忆系统，自动抽取、去重、合并记忆。" },
+  { id: "hindsight", label: "Hindsight", desc: "云端长期记忆 + 自动归纳，适合写系列文。" },
+];
+
+function RecallEngineSection({
   settings, updateSettings, notify,
 }: {
   settings: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; laya?: LayaSettings; hindsight?: HindsightSettings; mindmem?: MindMemSettings };
   updateSettings: (patch: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; laya?: LayaSettings; hindsight?: HindsightSettings; mindmem?: MindMemSettings }) => void;
+  notify: (kind: "info" | "success" | "warning" | "danger", text: string, detail?: string) => void;
+}) {
+  const engine = resolveRecallEngine(settings);
+  const recall = resolveSemanticRecall(settings);
+  const patchLocal = (p: Partial<SemanticRecallSettings>) => updateSettings({ semanticRecall: { ...recall, ...p } });
+
+  const pickEngine = (next: RecallEngine) => {
+    if (next === engine) return;
+    updateSettings(recallEnginePatch(next, settings));
+    notify(
+      "info",
+      next === "off" ? "已关闭记忆召回" : "已切换到 " + RECALL_ENGINE_LABEL[next],
+      next === "off" ? "只用规则排序注入记忆" : "之前的配置都保留了，随时能切回来",
+    );
+  };
+
+  return (
+    <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
+      <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+        <Radar className="size-4 opacity-60" />
+        记忆召回引擎
+      </h2>
+      <p className="mt-1 text-xs leading-relaxed opacity-65">
+        记忆多了以后，按可信度排序注入会越来越不灵：一条很可信但和当前章节无关的记忆，
+        会挤掉那条真正相关的。选一个引擎，让系统按「当前在写什么」挑记忆。
+        <b>只能选一个</b> —— 同时开多个不会更准，只会变成"谁先命中谁说了算"，还白打几次云服务；
+        没配好、连不上时一律退回规则排序，写作不受影响。
+      </p>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {ENGINE_OPTIONS.map((opt) => {
+          const active = engine === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => pickEngine(opt.id)}
+              className={
+                "rounded-lg border p-3 text-left transition " +
+                (active
+                  ? "border-black/30 bg-black/[0.05] dark:border-white/30 dark:bg-white/[0.07]"
+                  : "border-black/8 hover:border-black/20 dark:border-white/10 dark:hover:border-white/25")
+              }
+            >
+              <span className="flex items-center gap-1.5 text-xs font-medium">
+                {opt.label}
+                {active && (
+                  <Chip size="sm" color="success">
+                    使用中
+                  </Chip>
+                )}
+              </span>
+              <span className="mt-1 block text-[11px] leading-relaxed opacity-65">{opt.desc}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {engine !== "off" && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1 text-[11px] opacity-70">
+            每次召回条数
+            <input
+              type="number"
+              min={1}
+              max={24}
+              value={recall.topK}
+              onChange={(e) => patchLocal({ topK: Math.max(1, Math.min(24, Number(e.target.value) || 8)) })}
+              className="tabular w-14 rounded border border-black/10 bg-transparent px-1 py-0.5 text-center dark:border-white/15"
+            />
+          </label>
+          <span className="text-[10px] opacity-50">置顶的记忆永远注入，不占这个额度</span>
+        </div>
+      )}
+
+      {engine === "local" && <LocalRecallConfig settings={settings} updateSettings={updateSettings} notify={notify} />}
+      {engine === "viking" && <VikingSection settings={settings} updateSettings={updateSettings} notify={notify} />}
+      {engine === "mindmem" && <MindMemSection settings={settings} updateSettings={updateSettings} notify={notify} />}
+      {engine === "hindsight" && <HindsightSection settings={settings} updateSettings={updateSettings} notify={notify} />}
+    </section>
+  );
+}
+
+/** 本地向量召回的配置（选中「本地向量」时展开） */
+function LocalRecallConfig({
+  settings, updateSettings, notify,
+}: {
+  settings: { semanticRecall?: SemanticRecallSettings };
+  updateSettings: (patch: { semanticRecall?: SemanticRecallSettings }) => void;
   notify: (kind: "info" | "success" | "warning" | "danger", text: string, detail?: string) => void;
 }) {
   const recall = resolveSemanticRecall(settings);
@@ -765,7 +872,7 @@ function SemanticRecallSection({
     }
   };
 
-  /** 一键启用：填好本地默认值并测试，缺哪步直接告诉作者 */
+  /** 一键填好本地默认值并测试，缺哪步直接告诉作者 */
   const oneKeyEnable = async () => {
     const next: SemanticRecallSettings = {
       ...recall,
@@ -781,8 +888,8 @@ function SemanticRecallSection({
       const res = await probeEmbedding(next);
       notify(
         res.ok ? "success" : "warning",
-        res.ok ? "语义召回已启用" : "已启用，但向量服务还没通",
-        res.ok ? "和当前章节最相关的记忆会被优先注入" : res.message + " —— 已退回规则排序，装好 Ollama 后点“测试向量服务”即可",
+        res.ok ? "本地向量召回已就绪" : "已配置，但向量服务还没通",
+        res.ok ? "和当前章节最相关的记忆会被优先注入" : res.message + " —— 已退回规则排序，装好 Ollama 后点「测试向量服务」即可",
       );
     } finally {
       setTesting(false);
@@ -790,47 +897,19 @@ function SemanticRecallSection({
   };
 
   return (
-    <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="max-w-2xl">
-          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
-            <Radar className="size-4 opacity-60" />
-            语义召回（可选）
-          </h2>
-          <p className="mt-1 text-xs leading-relaxed opacity-65">
-            记忆多了以后，按可信度排序注入会越来越不灵：一条很可信但和当前章节无关的记忆，
-            会挤掉那条真正相关的。打开后，系统用向量找出「和当前正在写的内容最相关」的记忆，
-            与原来的排序结果合并去重后注入；置顶的记忆永远注入。
-          </p>
-          <p className="mt-1 text-[11px] leading-relaxed opacity-55">
-            弊端：要装 Ollama 并下载向量模型（几百 MB），首次补向量稍慢；换模型会让缓存失效重算。介意折腾就别开，本地记忆完全够用。
-          </p>
-          {!recall.enabled && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              <Button size="sm" variant="primary" isPending={testing} onPress={() => void oneKeyEnable()}>
-                <Zap className="size-3.5" />
-                一键启用本地语义召回
-              </Button>
-            </div>
-          )}
-        </div>
-        <Switch
-          isSelected={recall.enabled}
-          onChange={(v) => {
-            patch({ enabled: v });
-            if (v) notify("info", "已开启语义召回", "第一次生成会为已有记忆补算向量，之后走缓存");
-          }}
-        >
-          <Switch.Content>
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-            启用
-          </Switch.Content>
-        </Switch>
+    <div className="mt-3 rounded-lg bg-black/[0.03] p-3 dark:bg-white/[0.04]">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium">本地向量配置</p>
+        <Button size="sm" variant="outline" isPending={testing} onPress={() => void oneKeyEnable()}>
+          <Zap className="size-3.5" />
+          一键用本地 Ollama
+        </Button>
       </div>
+      <p className="mt-1 text-[11px] leading-relaxed opacity-65">
+        缺点：要装 Ollama 并下载向量模型（几百 MB），首次补向量稍慢；换模型会让缓存失效重算。
+      </p>
 
-      <div className={"mt-3 space-y-2 " + (recall.enabled ? "" : "opacity-50")}>
+      <div className="mt-2 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={recall.source}
@@ -895,36 +974,22 @@ function SemanticRecallSection({
           <EmbeddingModelPicker
             endpoint={recall.endpoint}
             model={recall.model}
-            disabled={!recall.enabled}
+            disabled={false}
             onPick={(name) => patch({ model: name })}
           />
         )}
 
-        <div className={"flex flex-wrap items-center gap-2 " + (recall.enabled ? "" : "opacity-50")}>
-          <label className="flex items-center gap-1 text-[11px] opacity-70">
-            召回条数
-            <input
-              type="number"
-              min={1}
-              max={24}
-              value={recall.topK}
-              onChange={(e) => patch({ topK: Math.max(1, Math.min(24, Number(e.target.value) || 8)) })}
-              className="tabular w-14 rounded border border-black/10 bg-transparent px-1 py-0.5 text-center dark:border-white/15"
-            />
-          </label>
-
+        <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" isPending={testing} onPress={() => void runProbe()}>
             测试向量服务
           </Button>
         </div>
 
         <p className="text-[10px] leading-relaxed opacity-50">
-          {recall.enabled
-            ? "向量按记忆内容缓存：内容没变就不会重复计算。服务不可达时会静默退回原来的规则排序，不会弹错误、也不会让生成卡住。"
-            : "关着的时候完全走原来的规则排序，不会发任何额外请求，也不会读章节正文。"}
+          向量按记忆内容缓存：内容没变就不会重复计算。服务不可达时会静默退回规则排序，不会弹错误、也不会让生成卡住。
           {lastEmbeddingError() ? " 上次调用失败：" + lastEmbeddingError() : ""}
         </p>
-        {recall.enabled && recall.source === "ollama" && (
+        {recall.source === "ollama" && (
           // 这是最容易让人以为"功能坏了"的一步：Ollama 默认只接受同源请求，
           // 浏览器从本项目（另一个端口）直连会被跨域拦掉，表现是"一直静默降级"。
           <p className="text-[10px] leading-relaxed text-amber-600/90 dark:text-amber-400/90">
@@ -933,15 +998,12 @@ function SemanticRecallSection({
             启动日志里能看到 CORS 相关的报错。
           </p>
         )}
-        <VikingSection settings={settings} updateSettings={updateSettings} notify={notify} />
-        <MindMemSection settings={settings} updateSettings={updateSettings} notify={notify} />
-        <LayaSection settings={settings} updateSettings={updateSettings} notify={notify} />
-        <HindsightSection settings={settings} updateSettings={updateSettings} notify={notify} />
       </div>
-    </section>
+    </div>
   );
 }
 
+/** OpenViking 的配置（选中 OpenViking 时展开） */
 function VikingSection({
   settings, updateSettings, notify,
 }: {
@@ -964,27 +1026,13 @@ function VikingSection({
   };
 
   return (
-    <div className="mt-3 rounded-lg border border-black/8 p-3 dark:border-white/10">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium">OpenViking 增强召回（可选）</p>
-        <Switch isSelected={vk.enabled} onChange={(v) => patch({ enabled: v })}>
-          <Switch.Content>
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-            {vk.enabled ? "已启用" : "未启用"}
-          </Switch.Content>
-        </Switch>
-      </div>
-      <p className="mt-1.5 text-[11px] leading-relaxed opacity-65">
-        OpenViking 把记忆按“人物 / 世界观 / 设定”分级存放，召回时先定位到相关的那一枝、再往下细找。
-        记忆特别多（几百条以上）时，它比本地向量召回更准、送进模型的字也更少。
-      </p>
+    <div className="mt-3 rounded-lg bg-black/[0.03] p-3 dark:bg-white/[0.04]">
+      <p className="text-xs font-medium">OpenViking 配置</p>
       <p className="mt-1 text-[11px] leading-relaxed opacity-65">
-        两种用法：<b>火山引擎托管版</b>（官方服务，在火山控制台开通 OpenViking Context、建库后拿
-        API Key 填进来，开箱即用）；<b>本地自建版</b>（跑 openviking-server，免费但要自己维护）。
-        火山版要配方舟模型凭证（VLM + Embedding），按量计费。
-        没填 Key、没起服务、连不上 —— 都会静默退回原来的召回链路，写作不受任何影响。
+        OpenViking 把记忆按“人物 / 世界观 / 设定”分级存放，召回时先定位到相关的那一枝、再往下细找。
+        两种用法：<b>火山引擎托管版</b>（控制台开通 OpenViking Context、建库后拿 API Key 填进来）
+        或<b>本地自建版</b>（跑 openviking-server，免费但要自己维护）。
+        没填 Key、没起服务、连不上 —— 都会静默退回规则排序。
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
         <Button size="sm" variant={vk.endpoint.includes("vikingdb") ? "primary" : "outline"} onPress={() => patch({ endpoint: VIKING_CLOUD_ENDPOINT })}>
@@ -1002,7 +1050,7 @@ function VikingSection({
           复制自建安装命令
         </Button>
       </div>
-      <div className={"mt-2 flex flex-wrap items-center gap-2 " + (vk.enabled ? "" : "opacity-50")}>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-1 text-[11px] opacity-70">
           服务地址
           <input
@@ -1164,18 +1212,8 @@ function MindMemSection({
   };
 
   return (
-    <div className="mt-3 rounded-lg border border-black/8 p-3 dark:border-white/10">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium">MindMemOS 记忆系统（可选）</p>
-        <Switch isSelected={mm.enabled} onChange={(v) => patch({ enabled: v })}>
-          <Switch.Content>
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-            {mm.enabled ? "已启用" : "未启用"}
-          </Switch.Content>
-        </Switch>
-      </div>
+    <div className="mt-3 rounded-lg bg-black/[0.03] p-3 dark:bg-white/[0.04]">
+      <p className="text-xs font-medium">MindMemOS 配置</p>
       <p className="mt-1.5 text-[11px] leading-relaxed opacity-65">
         开源的记忆操作系统（华为诺亚方舟实验室）。它会从写进去的内容里自动抽取记忆、
         去重合并，检索时按语义找相关的。适合记忆很多、又想让它自己整理的场景。
@@ -1263,18 +1301,8 @@ function HindsightSection({
   };
 
   return (
-    <div className="mt-3 rounded-lg border border-black/8 p-3 dark:border-white/10">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium">Hindsight 长期记忆（可选）</p>
-        <Switch isSelected={hs.enabled} onChange={(v) => patch({ enabled: v })}>
-          <Switch.Content>
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-            {hs.enabled ? "已启用" : "未启用"}
-          </Switch.Content>
-        </Switch>
-      </div>
+    <div className="mt-3 rounded-lg bg-black/[0.03] p-3 dark:bg-white/[0.04]">
+      <p className="text-xs font-medium">Hindsight 配置</p>
       <p className="mt-1.5 text-[11px] leading-relaxed opacity-65">
         说明：一本书的记忆同步一份到云端记忆库，自动归纳去重；召回按相关度映射回本地记忆。
         适合写系列文、跨书复用设定。

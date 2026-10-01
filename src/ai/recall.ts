@@ -4,6 +4,8 @@ import { cosine, embedOne, embeddingSettings, lastEmbeddingError, memoryVectors 
 import { recallViaViking, vikingSettings } from './viking';
 import { recallViaHindsight, hindsightSettings } from './hindsight';
 import { recallViaMindMem, mindmemSettings } from './mindmem';
+import { loadSettings } from '@/db/repo/settings';
+import { resolveRecallEngine } from '@/core/settings';
 
 /**
  * 语义召回：按"当前在写什么"挑记忆。
@@ -181,8 +183,11 @@ export async function recallMemories(opts: RecallOptions): Promise<RecallOutcome
   const vk = vikingSettings();
   const hs = hindsightSettings();
   const mm = mindmemSettings();
-  // 全关：不做任何额外工作（不读章节、不发请求），行为与改动前完全一致
-  if (!cfg.enabled && !vk.enabled && !hs.enabled && !mm.enabled) return { facts, semantic: false, pickedIds: [] };
+
+  // 召回引擎是单选：走作者选中的那一条路，不再"谁先命中谁说了算"。
+  // 任何一个引擎不可用、失败、没命中 → 都回规则排序（不偷偷换别的引擎）。
+  const engine = resolveRecallEngine(loadSettings());
+  if (engine === 'off') return { facts, semantic: false, pickedIds: [] };
 
   let query = (opts.query ?? '').trim();
   if (!query) {
@@ -194,37 +199,23 @@ export async function recallMemories(opts: RecallOptions): Promise<RecallOutcome
   }
   if (!query) return { facts, semantic: false, pickedIds: [], note: '还没有正文或大纲可以作为召回query' };
 
-  // 外挂召回按顺序试：Viking（本地服务）→ Hindsight（云端记忆）→ 本地链路。
-  // 谁先命中用谁；全失败才回规则排序，note 里写清原因（只给设置页看）。
   const topK = Math.max(1, opts.topK ?? cfg.topK);
-  const notes: string[] = [];
+  const pick = (ids: ID[]) => ({ facts: mergeRecallOrder(facts, ids, opts.limit), semantic: true, pickedIds: ids });
 
-  if (vk.enabled) {
+  if (engine === 'viking') {
     const res = await recallViaViking(opts.projectId, query, facts, vk, topK);
-    if (res.pickedIds.length) {
-      return { facts: mergeRecallOrder(facts, res.pickedIds, opts.limit), semantic: true, pickedIds: res.pickedIds };
-    }
-    if (res.note) notes.push(res.note);
+    return res.pickedIds.length ? pick(res.pickedIds) : { facts, semantic: false, pickedIds: [], note: res.note };
   }
-
-  if (hs.enabled) {
-    const hres = await recallViaHindsight(opts.projectId, query, facts, hs, topK);
-    if (hres.pickedIds.length) {
-      return { facts: mergeRecallOrder(facts, hres.pickedIds, opts.limit), semantic: true, pickedIds: hres.pickedIds };
-    }
-    if (hres.note) notes.push(hres.note);
+  if (engine === 'mindmem') {
+    const res = await recallViaMindMem(opts.projectId, query, facts, mm, topK);
+    return res.pickedIds.length ? pick(res.pickedIds) : { facts, semantic: false, pickedIds: [], note: res.note };
   }
-
-  if (mm.enabled) {
-    const mres = await recallViaMindMem(opts.projectId, query, facts, mm, topK);
-    if (mres.pickedIds.length) {
-      return { facts: mergeRecallOrder(facts, mres.pickedIds, opts.limit), semantic: true, pickedIds: mres.pickedIds };
-    }
-    if (mres.note) notes.push(mres.note);
+  if (engine === 'hindsight') {
+    const res = await recallViaHindsight(opts.projectId, query, facts, hs, topK);
+    return res.pickedIds.length ? pick(res.pickedIds) : { facts, semantic: false, pickedIds: [], note: res.note };
   }
-
-  const fallback = await localRecall(opts, facts, query, cfg);
-  return notes.length && !fallback.semantic ? { ...fallback, note: notes[notes.length - 1] } : fallback;
+  // engine === 'local'
+  return localRecall(opts, facts, query, cfg);
 }
 
 async function localRecall(
