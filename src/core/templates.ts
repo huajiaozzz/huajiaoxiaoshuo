@@ -17,7 +17,13 @@ export type TemplateCategory =
   | 'romance'
   | 'mystery'
   | 'wuxia'
-  | 'war';
+  | 'war'
+  | 'apocalypse'
+  | 'infinite'
+  | 'fantasy'
+  | 'horror'
+  | 'realism'
+  | 'healing';
 
 export const TEMPLATE_CATEGORY_LABEL: Record<TemplateCategory, string> = {
   all: '全部',
@@ -30,10 +36,17 @@ export const TEMPLATE_CATEGORY_LABEL: Record<TemplateCategory, string> = {
   mystery: '悬疑智斗',
   wuxia: '武侠江湖',
   war: '军事战争',
+  apocalypse: '末世废土',
+  infinite: '无限诸天',
+  fantasy: '西幻异世',
+  horror: '惊悚怪谈',
+  realism: '年代现实',
+  healing: '种田治愈',
 };
 
 export const TEMPLATE_CATEGORIES: TemplateCategory[] = [
   'all', 'xuanhuan', 'urban', 'scifi', 'history', 'game', 'romance', 'mystery', 'wuxia', 'war',
+  'apocalypse', 'infinite', 'fantasy', 'horror', 'realism', 'healing',
 ];
 
 export interface NovelTemplate {
@@ -533,6 +546,174 @@ export const NOVEL_TEMPLATES: NovelTemplate[] = [
     pov: 'third-limited',
     seed: '退役特种兵在边城开修车铺，战友遗孤被卷入跨境案件，他不得不再次亮出早已封存的獠牙。',
     toneKeywords: ['热血', '兵王', '现代战争'],
+  },
+
+  // ---------- 末世废土 ----------
+  {
+    id: 'mo-shi-zhongqi',
+    emoji: '☢️',
+    name: '末世重启·种田',
+    logline: '丧尸爆发第七年，他在废墟里种出了第一茬麦子',
+    category: 'apocalypse',
+    tags: ['男频·成人向', '末世', '种田', '基建', '慢热'],
+    genres: ['末世', '科幻'],
+    lengthClass: 'webnovel',
+    pov: 'third-limited',
+    seed: '末世第七年，幸存者据点靠捡罐头过活。主角翻出一包麦种，决定在辐射灰下试试种地——这一举动让据点从抢掠者变成了所有人眼里的肥肉。',
+    toneKeywords: ['末世', '基建', '生存'],
+  },
+  {
+    id: 'mo-shi-fuyou',
+    emoji: '🧟',
+    name: '末世父女·公路',
+    logline: '他背着一把猎枪和一个六岁女孩，穿越三千公里无人区',
+    category: 'apocalypse',
+    tags: ['男频·成人向', '末世', '公路', '父女', '情感'],
+    genres: ['末世', '悬疑'],
+    lengthClass: 'novel',
+    pov: 'first',
+    seed: '病毒爆发后，男人带着邻居家托付的小女孩上路，寻找传闻中的安全区。三千公里，他要教会她活下去，也要说服自己别变成另一种怪物。',
+    toneKeywords: ['末世', '公路', '父女'],
+  },
+
+  // ---------- 无限诸天 ----------
+  {
+    id: 'wuxian-lunhui',
+    emoji: '🎲',
+    name: '无限轮回·闯关',
+    logline: '死后被拉进轮回空间，靠通关电影世界续命',
+    category: 'infinite',
+    tags: ['男频·学生向', '无限流', '闯关', '升级', '群像'],
+    genres: ['无限流', '科幻'],
+    lengthClass: 'webnovel',
+    pov: 'third-limited',
+    seed: '主角车祸身亡后被拉进轮回空间：每通关一个世界副本获得积分与能力，失败即抹除。队友来自各时代，有人想活下去，有人想掀翻这个游戏。',
+    toneKeywords: ['无限流', '闯关', '悬疑'],
+  },
+  {
+    id: 'zhutian-mengzhu',
+    emoji: '🌌',
+    name: '诸天万界·开宗',
+    logline: '每个世界都留下他的传说，而他在找回家的路',
+    category: 'infinite',
+    tags: ['男频·青年向', '诸天', '长生', '无敌流', '热血'],
+    genres: ['无限流', '玄幻'],
+    lengthClass: 'webnovel',
+    pov: 'third-limited',
+    seed: '他意外获得穿梭诸天的能力，在武侠世界学剑、在仙侠世界证道、在星际世界造舰。走得越远，越发现每个世界都有同一个人的痕迹。',
+    toneKeywords: ['诸天', '无敌', '热血'],
+  },
+
+  // ---------- 西幻异世 ----------
+  {
+    id: 'xihuan-moshi',
+    emoji: '🧙',
+    name: '魔法学院·成长',
+    logline: '不会魔法的少年，靠一本禁书考进了帝国学院',
+    category: 'fantasy',
+    tags: ['男频·学生向', '西幻', '学院', '成长', '友情'],
+    genres: ['奇幻', '轻小说'],
+    lengthClass: 'novel',
+    pov: 'third-limited',
+    seed: '众所周知主角没有魔力天赋。他带着祖母留下的禁书混进帝国魔法学院，用借来的力量一路往上爬，也一步步接近禁书真正的代价。',
+    toneKeywords: ['西幻', '学院', '成长'],
+  },
+  {
+    id: 'xihuan-jianyu-mofa',
+    emoji: '⚔️',
+    name: '骑士与龙·史诗',
+    logline: '最后一位守誓骑士，护送敌国公主穿越龙脊山脉',
+    category: 'fantasy',
+    tags: ['男频·成人向', '西幻', '史诗', '骑士', '战争'],
+    genres: ['奇幻', '历史'],
+    lengthClass: 'novel',
+    pov: 'third-limited',
+    seed: '王国覆灭，只剩一位守誓骑士还握着剑。他要护送敌国公主穿越龙脊山脉去换一纸停战协议——而公主身上藏着比战争更危险的东西。',
+    toneKeywords: ['西幻', '史诗', '骑士'],
+  },
+
+  // ---------- 惊悚怪谈 ----------
+  {
+    id: 'guaitan-gongyu',
+    emoji: '🕯️',
+    name: '怪谈公寓·单元剧',
+    logline: '这栋楼每层都住着一个"不能说破"的东西',
+    category: 'horror',
+    tags: ['男频·成人向', '怪谈', '单元剧', '悬疑', '克苏鲁'],
+    genres: ['惊悚', '悬疑'],
+    lengthClass: 'novel',
+    pov: 'first',
+    seed: '租房便宜的代价是：楼里每一层都住着不能直呼其名的东西。新搬来的主角靠一本前任租客留下的笔记，学着一层一层地活下去。',
+    toneKeywords: ['怪谈', '惊悚', '悬疑'],
+  },
+  {
+    id: 'xiong-an-fuyou',
+    emoji: '🔪',
+    name: '凶案重现·刑侦',
+    logline: '他能在梦里重回案发现场，但每次都要付出记忆',
+    category: 'horror',
+    tags: ['男频·成人向', '刑侦', '悬疑', '异能', '单元案'],
+    genres: ['悬疑', '惊悚'],
+    lengthClass: 'novel',
+    pov: 'third-limited',
+    seed: '刑警主角意外获得能力：睡着后能重回十二小时内经过的案发现场。代价是每用一次，就忘掉一段自己的过去。他必须在忘记一切前抓住凶手。',
+    toneKeywords: ['刑侦', '悬疑', '代价'],
+  },
+
+  // ---------- 年代现实 ----------
+  {
+    id: 'niandai-jiating',
+    emoji: '📻',
+    name: '年代家庭·群像',
+    logline: '一台收音机串起三代人的四十年',
+    category: 'realism',
+    tags: ['全龄向', '年代', '家庭', '群像', '现实主义'],
+    genres: ['现实', '家庭'],
+    lengthClass: 'novel',
+    pov: 'third-limited',
+    seed: '1978 年的冬天，父亲用半年积蓄买了台收音机。这个家此后四十年的聚散、争吵与和解，都被这台机器听着。',
+    toneKeywords: ['年代', '家庭', '现实主义'],
+  },
+  {
+    id: 'zhicheng-zhichang',
+    emoji: '🏢',
+    name: '职场浮沉·成长',
+    logline: '从实习生到合伙人，她花了十二年',
+    category: 'realism',
+    tags: ['女频·成人向', '职场', '成长', '现实主义', '都市'],
+    genres: ['现实', '职场'],
+    lengthClass: 'novel',
+    pov: 'first',
+    seed: '名校毕业进大厂，她以为努力就够了。十二年里经历站队、背锅、裁员与翻盘，最终明白：职场里最难的不是做事，是决定成为什么样的人。',
+    toneKeywords: ['职场', '成长', '现实'],
+  },
+
+  // ---------- 种田治愈 ----------
+  {
+    id: 'zhongtian-shangu',
+    emoji: '🍃',
+    name: '山居种田·治愈',
+    logline: '辞掉大厂工作，回山里开一间民宿',
+    category: 'healing',
+    tags: ['全龄向', '治愈', '种田', '慢生活', '美食'],
+    genres: ['治愈', '现实'],
+    lengthClass: 'novel',
+    pov: 'first',
+    seed: '三十岁那年主角辞掉工作回老家，把祖屋改成民宿。种菜、修屋、招待形形色色的客人——日子很慢，但一年下来，来的人都变了。',
+    toneKeywords: ['治愈', '种田', '慢生活'],
+  },
+  {
+    id: 'xiaozhen-shitang',
+    emoji: '🍜',
+    name: '小镇食堂·单元',
+    logline: '深夜食堂开在县城老街，每个客人都带着一个故事',
+    category: 'healing',
+    tags: ['全龄向', '美食', '单元故事', '治愈', '烟火气'],
+    genres: ['治愈', '都市'],
+    lengthClass: 'novel',
+    pov: 'third-limited',
+    seed: '县医院旁的小食堂只做夜宵。老板话不多，但记得每个老客人吃什么、忌什么——因为每道菜背后，都是一段他们没说出口的日子。',
+    toneKeywords: ['美食', '治愈', '单元'],
   },
 ];
 

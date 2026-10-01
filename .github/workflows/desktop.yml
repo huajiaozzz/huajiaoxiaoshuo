@@ -1,10 +1,16 @@
 name: desktop
 
+# 打 v* tag 时自动编 Mac / Windows 安装包，挂到对应的 Release 附件里；
+# 也可以在 Actions 页面手动触发（workflow_dispatch）。
 on:
   push:
     tags:
       - "v*"
   workflow_dispatch:
+
+# tauri-action 要创建 Release 并上传附件，默认的只读 token 不够
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -27,7 +33,7 @@ jobs:
       - name: install frontend deps
         run: npm ci
       - name: build
-        uses: tauri-apps/tauri-action@v2
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

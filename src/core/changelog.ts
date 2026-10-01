@@ -39,9 +39,15 @@ export const APP_VERSION = "0.13.1";
 export const CHANGELOG: Release[] = [
   {
     version: "0.13.1",
-    date: "2026-10-01",
-    headline: "记忆召回改成单选引擎，不再互相抢答",
+    date: "2026-10-02",
+    headline: "模板分类翻倍：新增末世、无限流、西幻等六类",
     changes: [
+      {
+        kind: "added",
+        items: [
+          "**内置模板库新增六类**：末世废土、无限诸天、西幻异世、惊悚怪谈、年代现实、种田治愈，每类两个可直接开写的模板（共 12 个，模板总数 47）。",
+        ],
+      },
       {
         kind: "improved",
         items: [

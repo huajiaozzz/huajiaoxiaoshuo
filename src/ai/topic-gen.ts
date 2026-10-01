@@ -37,6 +37,12 @@ const CATEGORY_EMOJI: Record<Exclude<TemplateCategory, "all">, string> = {
   mystery: "🕯️",
   wuxia: "⚔️",
   war: "🎖️",
+  apocalypse: "☢️",
+  infinite: "🎲",
+  fantasy: "🧙",
+  horror: "🔪",
+  realism: "📻",
+  healing: "🍃",
 };
 
 export interface TopicGenOptions {
