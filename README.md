@@ -9,6 +9,22 @@
 - 模型：DeepSeek / OpenAI / Kimi / 智谱 / 通义 / 硅基流动 / OpenRouter / Ollama / LM Studio / 任意 OpenAI 兼容服务
 - 桌面端：Tauri 2（Mac / Windows），与网页版同一份构建产物
 
+## 桌面版安装
+
+安装包在 [Releases](https://github.com/qw1295353129/huajiaoxiaoshuo/releases) 页面，打 `v*` tag 后 CI
+自动构建挂上：Mac 是两个 dmg（Apple Silicon 选 `aarch64`、Intel 选 `x64`），Windows 选
+`setup.exe`（NSIS）或 `.msi`，安装界面均为简体中文。
+
+**Mac 首次打开**：安装包没有做 Apple 签名与公证，Gatekeeper 会弹「无法验证 HuajiaoWriter.app」——
+这不是应用坏了。点「完成」关掉弹窗 → 系统设置 → 隐私与安全性 → 拉到底点「**仍要打开**」→「打开」。
+例外记住后以后双击直接启动；也可以终端一步到位：
+
+```bash
+xattr -cr /Applications/HuajiaoWriter.app   # 应用拖到了别的位置就换成对应路径
+```
+
+**Windows 首次打开**：SmartScreen 会提示「Windows 已保护你的电脑」——点「更多信息」→「仍要运行」。
+
 ## 快速开始
 
 ```bash
