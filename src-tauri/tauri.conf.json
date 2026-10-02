@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "花椒写作",
+  "productName": "HuajiaoWriter",
   "version": "0.13.1",
   "identifier": "xin.reshui.huajiao-writer",
   "build": {

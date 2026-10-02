@@ -70,14 +70,12 @@ jobs:
             echo "no bundle artifacts found" >&2
             exit 1
           fi
-          # 中文文件名在上传时会被截断，先复制成 ASCII 名再传
-          #（gh release upload 不支持重命名，只有 # 显示标签，改的是展示名不是文件名）
+          # 文件名是 ASCII（productName 用拼音 HuajiaoWriter），可以直接传。
+          # 不要把 productName 改回中文：WiX 的 MSI 数据库在 en-US 代码页下编不了中文会
+          # 打包失败，且中文文件名上传到 Release 附件时会被截断。
           echo "$files" | while read -r f; do
-            dir=$(dirname "$f")
-            en=$(basename "$f" | sed 's/花椒写作/huajiaowriter/')
-            cp "$f" "$dir/$en"
-            echo "uploading $en"
-            gh release upload "$TAG" "$dir/$en" --repo "$GITHUB_REPOSITORY" --clobber
+            echo "uploading $(basename "$f")"
+            gh release upload "$TAG" "$f" --repo "$GITHUB_REPOSITORY" --clobber
           done
           echo "uploaded:"
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'
