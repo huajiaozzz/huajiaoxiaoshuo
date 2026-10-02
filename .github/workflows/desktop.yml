@@ -14,8 +14,9 @@ permissions:
 
 jobs:
   build:
-    # 编译失败时它会等另一个矩阵 job 合并 Release，容易空耗到 GitHub 的 6 小时上限
-    timeout-minutes: 60
+    # 首次全量编译 Rust 较慢（无缓存时 30-60 分钟）；编译失败时两个矩阵 job
+    # 还会互相等对方合并 Release，所以给足时间但也不放到 GitHub 的 6 小时上限
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -32,6 +33,9 @@ jobs:
           node-version: 22
       - name: install Rust
         uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
       - name: install frontend deps
         run: npm ci
       - name: build frontend
@@ -46,8 +50,4 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "花椒写作 ${{ github.ref_name }}"
           releaseDraft: true
-          # 显式声明：action 不会自己读 tauri.conf.json 里的这条，漏了就会
-          # 直接编译 Rust，报 "frontendDist 不存在" 然后卡在等待上
-          beforeBuildCommand: "npm run build"
-          beforeDevCommand: "npm run dev"
           args: ${{ matrix.args }}
