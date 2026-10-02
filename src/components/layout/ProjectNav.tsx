@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { NavLink, useParams } from "react-router-dom";
 import { Library, Plus, Settings as SettingsIcon } from "lucide-react";
 import { Button, Tooltip } from "@/components/kit";
@@ -5,6 +6,9 @@ import { useAppStore } from "@/app/store";
 import { NAV_GROUPS, ROUTE_PAGES } from "@/app/nav";
 import { ROUTES } from "@/app/routes";
 import { useOpenSettings } from "@/app/useOpenSettings";
+
+/** 侧栏滚动位置的存储键 */
+const NAV_SCROLL_KEY = "huajiao:navScroll";
 
 /**
  * 项目内的左侧导航。
@@ -24,6 +28,25 @@ export function ProjectNav({ className }: { className?: string }) {
   const id = project?.id ?? projectId;
   const openSettings = useOpenSettings();
   const onLibrary = !projectId;
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  /*
+   * 滚动位置记忆。
+   *
+   * 导航本体不是全局常驻的 —— 每个页面都各自渲染一份 ProjectNav（PageScaffold /
+   * LibraryShell），切路由时整棵树卸载重建，`overflow-y-auto` 的 scrollTop 归零。
+   * 表现就是"侧栏拉到底，点一个导航又回到顶"。这里把位置存 sessionStorage，
+   * 挂载时用 useLayoutEffect 恢复（DOM 已就位、还没绘制，不会有跳动）。
+   */
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    try {
+      el.scrollTop = Number(sessionStorage.getItem(NAV_SCROLL_KEY) ?? 0);
+    } catch {
+      /* 隐私模式读不了 sessionStorage，忽略 */
+    }
+  }, []);
 
   return (
     <nav
@@ -41,7 +64,17 @@ export function ProjectNav({ className }: { className?: string }) {
         <span className="truncate text-sm font-semibold tracking-tight">花椒写作</span>
       </NavLink>
 
-      <div className="flex-1 space-y-5 overflow-y-auto">
+      <div
+        ref={scrollRef}
+        className="flex-1 space-y-5 overflow-y-auto"
+        onScroll={(e) => {
+          try {
+            sessionStorage.setItem(NAV_SCROLL_KEY, String(e.currentTarget.scrollTop));
+          } catch {
+            /* 隐私模式写不了，忽略 */
+          }
+        }}
+      >
         {/* 作品级入口：放在「创作」分组之上 */}
         <ul className="space-y-1">
           <li>
