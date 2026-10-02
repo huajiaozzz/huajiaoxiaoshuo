@@ -37,3 +37,6 @@ brag-output-*/
 # Tauri
 src-tauri/target/
 src-tauri/gen/
+
+# video2code 插件缓存（本地工作目录，不进仓库）
+.v2c/

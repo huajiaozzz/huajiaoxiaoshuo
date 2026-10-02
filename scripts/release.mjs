@@ -3,7 +3,8 @@
  *
  * 为什么要有这个脚本：Release 的正文就是更新日志本身，手工复制进网页容易漏条目；
  * tag 还要打在「日志落地」的那笔提交上（而不是 HEAD），手工翻 sha 容易错。
- * 脚本一次把三件事做对：读 changelog 生成标题/正文 → 找落地提交 → gh release create。
+ * 另外版本号散在三处（changelog、tauri.conf.json、Cargo.toml），忘改一处
+ * 桌面安装包就叫着旧号。脚本一次把这几件事做对。
  *
  * 用法：
  *   node scripts/release.mjs                     # 发 APP_VERSION（默认标为 Latest）
@@ -16,7 +17,7 @@
  * 提醒：发完记得 push 提交，Release 页面与仓库状态才是同步的。
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -45,6 +46,50 @@ if (idx < 0) {
 }
 const release = CHANGELOG[idx];
 const prev = versions[idx + 1];
+
+/* 版本号散在三处：changelog（APP_VERSION）、tauri.conf.json、Cargo.toml。
+   桌面包文件名读的是后两处，忘改就会长着旧号发出去。这里统一同步。 */
+function syncVersions(v) {
+  const changed = [];
+  const edit = (file, transform) => {
+    const before = readFileSync(file, 'utf8');
+    const after = transform(before);
+    if (after !== before) {
+      writeFileSync(file, after);
+      changed.push(file);
+    }
+  };
+  edit('src-tauri/tauri.conf.json', (s) =>
+    s.replace(/"version":\s*"[^"]+"/, `"version": "${v}"`),
+  );
+  edit('src-tauri/Cargo.toml', (s) =>
+    s.replace(/^(version\s*=\s*)"[^"]+"/m, `$1"${v}"`),
+  );
+  edit('package.json', (s) =>
+    s.replace(/("version":\s*)"[^"]+"/, `$1"${v}"`),
+  );
+  return changed;
+}
+
+const dirty = git('status', '--porcelain');
+if (flags.has('--dry-run')) {
+  // 只读预览：不检查工作区、不改文件、不提交
+  console.log(`版本号 ${target} 将同步到：tauri.conf.json / Cargo.toml / package.json`);
+  if (dirty) console.log('（注意：工作区有未提交改动，正式发版前需提交）');
+} else {
+  if (dirty) {
+    console.error('✗ 有未提交的改动，先提交再发版：\n' + dirty);
+    process.exit(1);
+  }
+  const changedFiles = syncVersions(target);
+  if (changedFiles.length) {
+    git('add', ...changedFiles);
+    git('commit', '-m', `chore(release): sync versions to v${target}`);
+    git('push');
+    console.log(`✓ 版本号已同步到 ${target} 并推送：${changedFiles.join(', ')}`);
+  }
+}
+
 
 /* 标题与正文：与既有 Release（v0.6.0 起）的格式保持一致 */
 const title = release.headline ? `v${release.version} — ${release.headline}` : `v${release.version}`;

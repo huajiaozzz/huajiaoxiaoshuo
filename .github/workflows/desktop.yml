@@ -1,30 +1,40 @@
 name: desktop
 
-# 打 v* tag 时自动编 Mac / Windows 安装包，挂到对应的 Release 附件里；
-# 也可以在 Actions 页面手动触发（workflow_dispatch）。
+# 打 v* tag 时自动编 Mac / Windows 安装包并挂到对应 Release。
+#
+# 为什么不用 tauri-action：它内部跑的是 `npm run tauri build`，而 package.json 里的
+# tauri 脚本曾经是 "tauri dev"，于是在 CI 上启动了开发模式（vite dev server + debug
+# 版应用挂在无头的 runner 上），零输出直到被超时杀掉，两个平台都复现。
+# 这里改成自己跑 npx tauri build + gh release upload，不经过 npm 脚本转发，每步日志可见。
+#
+# 手动触发（workflow_dispatch）用于补传：代码已在某分支上、但那个版本的 Release 还缺
+# 安装包时，填 tag 输入项（如 v0.13.1），构建当前分支代码并把产物挂到那个 Release。
 on:
   push:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "要上传到的 Release tag（不填则用触发时的分支/标签名）"
+        required: false
+        type: string
 
-# tauri-action 要创建 Release 并上传附件，默认的只读 token 不够
+# gh release upload 需要写 Release 的权限
 permissions:
   contents: write
 
 jobs:
   build:
-    # 首次全量编译 Rust 较慢（无缓存时 30-60 分钟）；编译失败时两个矩阵 job
-    # 还会互相等对方合并 Release，所以给足时间但也不放到 GitHub 的 6 小时上限
-    timeout-minutes: 90
+    # 无缓存时 Windows 全量编 Rust 约 20-40 分钟（345 个 crate 的 debug 版 3 分多钟，
+    # release 版会慢几倍）；缓存只在 job 成功后由 rust-cache 保存，失败/超时的 run 攒不下缓存
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: macos-latest
-            args: ""
           - os: windows-latest
-            args: ""
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -42,12 +52,32 @@ jobs:
         run: npm run build
       - name: verify dist exists
         run: node -e "require('fs').accessSync('dist/index.html'); console.log('dist ok')"
-      - name: build
-        uses: tauri-apps/tauri-action@v0
+      - name: build tauri
+        run: npx tauri build
+      - name: upload to release
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "花椒写作 ${{ github.ref_name }}"
-          releaseDraft: true
-          args: ${{ matrix.args }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -e
+          # Release 正文由 npm run release 生成；万一没提前发，这里兜底建一个
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "花椒写作 $TAG" --generate-notes
+          # 产物里必须有安装包，否则说明 build 步骤没产出 bundle，静默跳过会让人以为传好了
+          files=$(find src-tauri/target/release/bundle -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.msi' -o -name '*.AppImage' \))
+          if [ -z "$files" ]; then
+            echo "no bundle artifacts found" >&2
+            exit 1
+          fi
+          # 中文文件名在上传时会被截断，先复制成 ASCII 名再传
+          #（gh release upload 不支持重命名，只有 # 显示标签，改的是展示名不是文件名）
+          echo "$files" | while read -r f; do
+            dir=$(dirname "$f")
+            en=$(basename "$f" | sed 's/花椒写作/huajiaowriter/')
+            cp "$f" "$dir/$en"
+            echo "uploading $en"
+            gh release upload "$TAG" "$dir/$en" --repo "$GITHUB_REPOSITORY" --clobber
+          done
+          echo "uploaded:"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'
