@@ -34,9 +34,23 @@ export const CHANGE_KIND_COLOR: Record<ChangeKind, "success" | "accent" | "warni
   fixed: "warning",
 };
 
-export const APP_VERSION = "0.13.1";
+export const APP_VERSION = "0.13.2";
 
 export const CHANGELOG: Release[] = [
+  {
+    version: "0.13.2",
+    date: "2026-10-03",
+    headline: "桌面版修复：确认弹窗与授权激活",
+    changes: [
+      {
+        kind: "fixed",
+        items: [
+          "**桌面版里需要确认的操作点了没反应**：解绑本机、删除作品/章节、恢复快照、清空数据等按钮在 Mac 桌面版上点下去毫无动静 —— 桌面壳不支持原生确认弹窗（静默当成取消）。已换成应用内确认框，网页与桌面行为一致，危险操作的确认键标红。",
+          "**桌面版首次激活报「授权服务未配置」**：安装包构建时缺少授权服务的访问凭据（网页版一直正常）。已改为构建时注入并在 CI 加了校验，缺凭据的包出不了门。",
+        ],
+      },
+    ],
+  },
   {
     version: "0.13.1",
     date: "2026-10-02",
