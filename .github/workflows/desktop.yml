@@ -26,6 +26,10 @@ permissions:
 
 jobs:
   build:
+    # 授权 key 要在 vite 构建时烧进 bundle（defaults.ts 读 import.meta.env，没有兜底值）；
+    # .env.local 不进仓库，CI 只能从 secret 注入，漏了这步桌面版会报「授权服务未配置」
+    env:
+      VITE_LICENSE_API_KEY: ${{ secrets.LICENSE_API_KEY }}
     # 无缓存时 Windows 全量编 Rust 约 20-40 分钟（345 个 crate 的 debug 版 3 分多钟，
     # release 版会慢几倍）；缓存只在 job 成功后由 rust-cache 保存，失败/超时的 run 攒不下缓存
     timeout-minutes: 60
