@@ -4,6 +4,7 @@ import { Button, Card, Chip } from "@/components/kit";
 import { Filter, GitBranch, LayoutGrid, ListTree, Plus, Search, Sparkles, X } from "lucide-react";
 import type { PlotThread } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";
+import { appConfirm } from "@/components/common/appConfirm";
 import { SegmentedControl } from "@/components/common/SegmentedControl";
 import { EmptyHint, Loading, SectionTitle, StatCard } from "@/components/common/ui";
 import { useAsync, useChapters, useCharacters, useDebounced, useThreads } from "@/app/hooks";
@@ -147,7 +148,7 @@ export function ThreadsPage() {
   };
 
   const remove = async (thread: PlotThread) => {
-    if (!window.confirm("删除伏笔「" + thread.title + "」？此操作不可撤销。")) return;
+    if (!(await appConfirm("删除伏笔「" + thread.title + "」？此操作不可撤销。", { danger: true }))) return;
     try {
       await deleteThread(thread.id);
       reloadProblems();

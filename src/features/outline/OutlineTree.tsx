@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Arc, Chapter, ID } from "@/core";
 import { Button, Card, Chip, Tooltip } from "@/components/kit";
+import { appConfirm } from "@/components/common/appConfirm";
 import {
   ChevronDown, ChevronRight, ChevronUp, ChevronsDownUp, GripVertical,
   Layers, Pencil, PenLine, Plus, Trash2,
@@ -147,7 +148,7 @@ export function OutlineTree({ projectId, arcs, chapters, selectedId, onSelect, o
   const removeArc = async (arc: Arc) => {
     const count = chapters.filter((c) => c.arcId === arc.id).length;
     const hint = count ? "其中 " + count + " 章会变为「未分卷」，不会被删除。" : "这一卷还没有章节。";
-    if (!confirm("删除卷《" + arc.title + "》？" + hint)) return;
+    if (!(await appConfirm("删除卷《" + arc.title + "》？" + hint, { danger: true }))) return;
     try {
       await deleteArc(arc.id);
       notify("info", "卷已删除", arc.title);
@@ -169,7 +170,7 @@ export function OutlineTree({ projectId, arcs, chapters, selectedId, onSelect, o
   };
 
   const removeChapter = async (chapter: Chapter) => {
-    if (!confirm("删除章节《" + chapter.title + "》？该章正文与历史快照会一起删除。")) return;
+    if (!(await appConfirm("删除章节《" + chapter.title + "》？该章正文与历史快照会一起删除。", { danger: true }))) return;
     try {
       await deleteChapter(chapter.id);
       notify("info", "章节已删除", chapter.title);

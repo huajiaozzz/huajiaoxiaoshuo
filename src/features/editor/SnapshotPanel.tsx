@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Chip } from "@/components/kit";
+import { appConfirm } from "@/components/common/appConfirm";
 import { Camera, RotateCcw, Trash2, X } from "lucide-react";
 import type { Chapter, Snapshot } from "@/core";
 import { useAppStore } from "@/app/store";
@@ -96,7 +97,7 @@ export function SnapshotPanel({
                   size="sm"
                   variant="ghost"
                   onPress={async () => {
-                    if (!confirm("恢复到该版本？当前内容会先自动备份。")) return;
+                    if (!(await appConfirm("恢复到该版本？当前内容会先自动备份。"))) return;
                     await onRestore(s.id);
                   }}
                 >
@@ -137,7 +138,7 @@ export function SnapshotPanel({
               variant="primary"
               fullWidth
               onPress={async () => {
-                if (confirm("恢复到该版本？")) {
+                if (await appConfirm("恢复到该版本？")) {
                   await restoreSnapshot(preview.id);
                   setPreview(null);
                   await onRestore(preview.id);

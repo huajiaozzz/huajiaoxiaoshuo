@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button, Input, Label, TextField } from "@/components/kit";
 import { KeyRound, ShieldCheck, Trash2 } from "lucide-react";
 import { Field, SectionTitle } from "@/components/common/ui";
+import { appConfirm } from "@/components/common/appConfirm";
 import { useAppStore } from "@/app/store";
 import * as repo from "@/db/repo/license";
 import { activateDevice, currentDevice, deactivateDevice } from "@/license/device";
@@ -62,7 +63,7 @@ export function ActivationPanel() {
   };
 
   const onDeactivate = async () => {
-    if (!confirm("解绑本机？这台设备的名额会被释放，之后需要重新激活才能继续创作。")) return;
+    if (!(await appConfirm("解绑本机？这台设备的名额会被释放，之后需要重新激活才能继续创作。", { title: "解绑本机", danger: true }))) return;
     setBusy("deactivate");
     setMessage(null);
     try {

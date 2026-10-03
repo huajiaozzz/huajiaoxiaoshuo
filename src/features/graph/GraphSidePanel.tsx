@@ -4,6 +4,7 @@ import { ArrowLeft, Link2, Plus, Save, Trash2, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Character, RelationKind, Relationship } from "@/core";
 import { deleteRelationship, upsertRelationship } from "@/db/repo/cast";
+import { appConfirm } from "@/components/common/appConfirm";
 import { useAppStore } from "@/app/store";
 import { ROUTES } from "@/app/routes";
 import {
@@ -337,7 +338,7 @@ function EdgeEditor({
   };
 
   const remove = async () => {
-    if (!window.confirm("删除关系「" + (from?.name ?? "?") + " → " + (to?.name ?? "?") + "」？")) return;
+    if (!(await appConfirm("删除关系「" + (from?.name ?? "?") + " → " + (to?.name ?? "?") + "」？", { danger: true }))) return;
     try {
       await deleteRelationship(edge.id);
       notify("success", "关系已删除");

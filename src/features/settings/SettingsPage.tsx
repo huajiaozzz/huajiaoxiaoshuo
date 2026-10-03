@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Chip, Input, Label, Switch, TextArea, TextField } from "@/components/kit";
+import { appConfirm, appPrompt } from "@/components/common/appConfirm";
 import { ArrowLeft, Brain, Check, Eraser, Eye, EyeOff, Fingerprint, Gauge, Globe, KeyRound, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, Zap } from "lucide-react";
 import { AnimatePresence, type Transition } from "motion/react";
 import { Fade } from "@/components/animate-ui/primitives/effects/fade";
@@ -406,7 +407,7 @@ function ModelsTab() {
                       title="清空密钥"
                       className="shrink-0 rounded p-0.5 transition hover:bg-black/10 dark:hover:bg-white/15"
                       onClick={async () => {
-                        if (!confirm("清空 " + p.name + " 的 API Key？供应商配置与模型列表会保留。")) return;
+                        if (!(await appConfirm("清空 " + p.name + " 的 API Key？供应商配置与模型列表会保留。"))) return;
                         setKeyDraft((s) => ({ ...s, [p.id]: "" }));
                         await setProviderKey(p.id, "");
                         reload();
@@ -442,7 +443,7 @@ function ModelsTab() {
                   size="sm"
                   variant="ghost"
                   onPress={async () => {
-                    if (!confirm("删除该供应商配置？")) return;
+                    if (!(await appConfirm("删除该供应商配置？", { danger: true }))) return;
                     await deleteProvider(p.id);
                     // 删除的是当前模型就清掉引用，避免留下指向不存在供应商的 activeProviderId
                     if (settings.activeProviderId === p.id) {
@@ -1039,9 +1040,9 @@ function DataTab() {
           size="sm"
           variant="danger"
           onPress={async () => {
-            const first = confirm("确定要清空全部本地数据吗？此操作无法撤销。");
+            const first = await appConfirm("确定要清空全部本地数据吗？此操作无法撤销。", { title: "清空本地数据库", danger: true });
             if (!first) return;
-            const second = prompt("请输入 DELETE 以确认删除全部数据");
+            const second = await appPrompt("请输入 DELETE 以确认删除全部数据", { title: "清空本地数据库", danger: true, confirmLabel: "清空" });
             if (second !== "DELETE") {
               notify("info", "已取消");
               return;

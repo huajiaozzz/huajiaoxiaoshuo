@@ -6,6 +6,7 @@ import { db } from "@/db/database";
 import { seedProviders, seedRouting } from "@/db/repo/settings";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Notice } from "@/components/common/Notice";
+import { AppConfirmHost } from "@/components/common/appConfirm";
 import { GlobalHotkeys } from "@/components/layout/GlobalHotkeys";
 import { CommandPalette } from "@/components/common/CommandPalette";
 import { Welcome } from "@/features/onboarding/Welcome";
@@ -153,6 +154,7 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Notice />
+      <AppConfirmHost />
     </>
   );
 }

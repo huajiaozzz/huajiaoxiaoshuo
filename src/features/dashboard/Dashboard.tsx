@@ -9,6 +9,7 @@ import { useAppStore } from "@/app/store";
 import { formatRelative, formatWords, pct } from "@/utils/format";
 import { ProjectOverview } from "./ProjectOverview";
 import { PageScaffold } from "@/components/common/PageScaffold";
+import { appConfirm } from "@/components/common/appConfirm";
 import { Zoom } from "@/components/animate-ui/primitives/effects/zoom";
 import { Fade } from "@/components/animate-ui/primitives/effects/fade";
 
@@ -119,9 +120,9 @@ export function Dashboard() {
                       type="button"
                       aria-label="删除作品"
                       className="opacity-0 transition group-hover:opacity-50 hover:!opacity-100"
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        if (confirm(`删除《${p.title}》？此操作不可撤销，所有章节与设定都会一起删除。`)) {
+                        if (await appConfirm(`删除《${p.title}》？此操作不可撤销，所有章节与设定都会一起删除。`, { title: "删除作品", danger: true })) {
                           void deleteProject(p.id);
                         }
                       }}

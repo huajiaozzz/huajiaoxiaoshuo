@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Chip, Tooltip } from "@/components/kit";
+import { appConfirm } from "@/components/common/appConfirm";
 import { ChevronDown, ChevronRight, GripVertical, Plus, Search, Settings2, Trash2 } from "lucide-react";
 import type { Arc, Chapter, ID } from "@/core";
 import { CHAPTER_STATUS_LABEL } from "@/app/theme";
@@ -219,9 +220,9 @@ export function ChapterList({ projectId, arcs, chapters, activeChapterId, collap
             type="button"
             aria-label="删除章节"
             className="shrink-0 opacity-0 transition hover:text-rose-500 group-hover:opacity-50"
-            onClick={(e) => {
+            onClick={async (e) => {
               e.stopPropagation();
-              if (confirm(`删除《${c.title}》？正文与快照都会一起删除。`)) void deleteChapter(c.id);
+              if (await appConfirm(`删除《${c.title}》？正文与快照都会一起删除。`, { danger: true })) void deleteChapter(c.id);
             }}
           >
             <Trash2 className="size-3" />

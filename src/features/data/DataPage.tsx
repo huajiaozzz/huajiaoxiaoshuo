@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { Button, Chip, Label, TextArea, TextField, Input } from "@/components/kit";
 import { BookMarked, Download, FileJson, FileText, Upload, Database, AlertTriangle, Check } from "lucide-react";
 import { PageScaffold } from "@/components/common/PageScaffold";
+import { appConfirm } from "@/components/common/appConfirm";
 import { EmptyHint, SectionTitle, StatCard } from "@/components/common/ui";
 import { useAppStore } from "@/app/store";
 import { useChapters } from "@/app/hooks";
@@ -419,7 +420,7 @@ function BackupTab({ projectId }: { projectId: string }) {
                 size="sm"
                 variant={mode === "replace" ? "danger" : "primary"}
                 onPress={async () => {
-                  if (mode === "replace" && !confirm("覆盖会清空当前所有数据，确定继续？")) return;
+                  if (mode === "replace" && !(await appConfirm("覆盖会清空当前所有数据，确定继续？", { danger: true }))) return;
                   setBusy("restore");
                   try {
                     const res = await restoreBackup(inspect, { mode });

@@ -3,6 +3,7 @@ import { Button, Card, Chip } from "@/components/kit";
 import { Check, Pencil, Plus, ScanSearch, Trash2, X } from "lucide-react";
 import type { GlossaryTerm, ID, WorldEntry } from "@/core";
 import { deleteGlossary, upsertGlossary } from "@/db/repo/world";
+import { appConfirm } from "@/components/common/appConfirm";
 import { useCharacters } from "@/app/hooks";
 import { useAppStore } from "@/app/store";
 import type { KnownName } from "@/utils/entity-scan";
@@ -125,7 +126,7 @@ export function GlossaryTab({ projectId, glossary, entries }: Props) {
   }
 
   async function removeTerm(term: GlossaryTerm) {
-    if (!window.confirm("从名词表移除「" + term.canonical + "」？")) return;
+    if (!(await appConfirm("从名词表移除「" + term.canonical + "」？"))) return;
     await deleteGlossary(term.id);
     notify("success", "已移除", term.canonical);
   }

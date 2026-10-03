@@ -4,6 +4,7 @@ import { Button, Card, Chip } from "@/components/kit";
 import { Clock, Filter, Layers, Plus, Search, Sparkles, X } from "lucide-react";
 import type { ID, TimelineEvent } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";
+import { appConfirm } from "@/components/common/appConfirm";
 import { SegmentedControl } from "@/components/common/SegmentedControl";
 import { EmptyHint, Loading, StatCard } from "@/components/common/ui";
 import { useAppStore } from "@/app/store";
@@ -123,7 +124,7 @@ export function TimelinePage() {
   };
 
   const remove = async (event: TimelineEvent) => {
-    if (!window.confirm("删除事件「" + event.title + "」？此操作不可撤销。")) return;
+    if (!(await appConfirm("删除事件「" + event.title + "」？此操作不可撤销。", { danger: true }))) return;
     try {
       await deleteTimelineEvent(event.id);
       notify("success", "事件已删除", event.title);

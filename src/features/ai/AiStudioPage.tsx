@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Button, Card, Chip, Tooltip } from "@/components/kit";
+import { appConfirm } from "@/components/common/appConfirm";
 import { AlertTriangle, PanelRightClose, PanelRightOpen, Plus, Settings2, Sparkles } from "lucide-react";
 import type { AiSession, ChatMessage, ID } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";
@@ -290,7 +291,7 @@ export function AiStudioPage() {
 
   async function removeSession(id: ID) {
     const target = sessions.find((s) => s.id === id) ?? archived.find((s) => s.id === id);
-    if (!window.confirm("删除对话「" + (target?.title ?? "") + "」？此操作不可撤销。")) return;
+    if (!(await appConfirm("删除对话「" + (target?.title ?? "") + "」？此操作不可撤销。", { danger: true }))) return;
     await deleteAiSession(id);
     setArchived((prev) => prev.filter((s) => s.id !== id));
     if (activeId === id) setActiveId(undefined);

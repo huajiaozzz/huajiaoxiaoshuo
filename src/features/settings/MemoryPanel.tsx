@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Button, Chip, Input, Switch, TextArea } from "@/components/kit";
+import { appConfirm } from "@/components/common/appConfirm";
 import {
   Brain, Check, Lightbulb, Pin, PinOff, Plus, RefreshCw, Sparkles, Trash2,
   EyeOff, Eye, AlertTriangle, BookMarked, Quote, GitMerge, X, Radar, Copy, Zap, CircleHelp,
@@ -614,7 +615,7 @@ export function MemoryPanel() {
               size="sm"
               variant="outline"
               onPress={async () => {
-                if (!confirm("清空本书的记忆？（全书通用的记忆会保留）")) return;
+                if (!(await appConfirm("清空本书的记忆？（全书通用的记忆会保留）"))) return;
                 const n = projectId ? await clearMemory("project", projectId) : 0;
                 notify("success", "已清空 " + n + " 条本书记忆");
               }}
@@ -625,7 +626,7 @@ export function MemoryPanel() {
               size="sm"
               variant="danger"
               onPress={async () => {
-                if (!confirm("清空全部记忆？包括全书通用的偏好。此操作不可撤销。")) return;
+                if (!(await appConfirm("清空全部记忆？包括全书通用的偏好。此操作不可撤销。", { danger: true }))) return;
                 const n = await clearMemory();
                 notify("success", "已清空 " + n + " 条记忆");
               }}

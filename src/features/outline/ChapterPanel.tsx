@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Chapter, ChapterStatus, ID } from "@/core";
 import { Button, Card, Chip, Description, Input, Label, TextArea, TextField } from "@/components/kit";
+import { appConfirm } from "@/components/common/appConfirm";
 import { AlertTriangle, Check, Loader2, PenLine, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { ROUTES } from "@/app/routes";
 import { useAppStore } from "@/app/store";
@@ -228,7 +229,7 @@ export function ChapterPanel({ projectId, chapter, index }: Props) {
   };
 
   const clearBeats = async () => {
-    if (!confirm("清除本章的所有场景节拍？")) return;
+    if (!(await appConfirm("清除本章的所有场景节拍？"))) return;
     try {
       await updateChapter(chapter.id, { beats: [] });
       notify("info", "已清除场景节拍", chapter.title);

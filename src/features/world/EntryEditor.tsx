@@ -4,6 +4,7 @@ import { Eye, Info, Link2, Pencil, Plus, RotateCcw, Save, Trash2 } from "lucide-
 import type { ID, WorldCategory, WorldEntry, WorldRule } from "@/core";
 import { WORLD_CATEGORY_LABELS } from "@/db/defaults";
 import { createWorldEntry, deleteWorldEntry, updateWorldEntry } from "@/db/repo/world";
+import { appConfirm } from "@/components/common/appConfirm";
 import { useAppStore } from "@/app/store";
 import { SectionTitle } from "@/components/common/ui";
 import { formatDateTime, formatRelative } from "@/utils/format";
@@ -196,7 +197,7 @@ export function EntryEditor({
       "删除《" + entry.title + "》？" +
       (childCount > 0 ? "它的 " + childCount + " 个子条目会被解除挂载（子条目本身保留）。" : "") +
       "正文中指向它的 [[链接]] 会失效。";
-    if (!window.confirm(tip)) return;
+    if (!(await appConfirm(tip, { danger: true }))) return;
     await deleteWorldEntry(entry.id);
     notify("success", "已删除条目", entry.title);
     onDeleted();
