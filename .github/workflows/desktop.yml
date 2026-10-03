@@ -58,6 +58,17 @@ jobs:
         run: npm run build
       - name: verify dist exists
         run: node -e "require('fs').accessSync('dist/index.html'); console.log('dist ok')"
+      # 密钥没烧进去的话安装包能正常打出来、授权功能却是坏的，属于静默失败，
+      # 这里卡一道：secret 被删/改名、env 没传到时直接红，不让坏包上线
+      - name: verify license key baked into dist
+        shell: bash
+        run: |
+          if grep -rlq 'lh_live_' dist/assets/; then
+            echo "dist contains license key"
+          else
+            echo "FATAL: VITE_LICENSE_API_KEY not found in dist assets" >&2
+            exit 1
+          fi
       - name: build tauri
         run: npx tauri build
       - name: upload to release
