@@ -5,8 +5,8 @@ import {
   Brain, Check, Lightbulb, Pin, PinOff, Plus, RefreshCw, Sparkles, Trash2,
   EyeOff, Eye, AlertTriangle, BookMarked, Quote, GitMerge, X, Radar, Copy, Zap, CircleHelp,
 } from "lucide-react";
-import type { ID, MemoryEffect, MemoryFact, MemoryKind, ProviderConfig, SemanticRecallSettings, VikingSettings, LayaSettings, HindsightSettings, MindMemSettings, RecallEngine } from "@/core";
-import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall, resolveViking, resolveLaya, resolveHindsight, resolveMindMem, resolveRecallEngine, recallEnginePatch, RECALL_ENGINE_LABEL, VIKING_CLOUD_ENDPOINT, VIKING_SELF_HOSTED_ENDPOINT, MINDMEM_CLOUD_ENDPOINT, MINDMEM_SELF_HOSTED_ENDPOINT } from "@/core";
+import type { ID, MemoryEffect, MemoryFact, MemoryKind, ProviderConfig, SemanticRecallSettings, VikingSettings, HindsightSettings, MindMemSettings, RecallEngine } from "@/core";
+import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall, resolveViking, resolveHindsight, resolveMindMem, resolveRecallEngine, recallEnginePatch, RECALL_ENGINE_LABEL, VIKING_CLOUD_ENDPOINT, VIKING_SELF_HOSTED_ENDPOINT, MINDMEM_CLOUD_ENDPOINT, MINDMEM_SELF_HOSTED_ENDPOINT } from "@/core";
 import { useAppStore } from "@/app/store";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -17,7 +17,6 @@ import {
 } from "@/db/repo/memory";
 import { listProviders } from "@/db/repo/settings";
 import { lastEmbeddingError, probeEmbedding } from "@/ai/embedding";
-import { lastLayaError, probeLaya } from "@/ai/laya";
 import { lastMindMemError, probeMindMem } from "@/ai/mindmem";
 import { lastHindsightError, probeHindsight } from "@/ai/hindsight";
 import { lastVikingError, probeViking } from "@/ai/viking";
@@ -598,9 +597,6 @@ export function MemoryPanel() {
 
       <RecallEngineSection settings={settings} updateSettings={updateSettings} notify={notify} />
 
-      {/* Laya 不是召回引擎：它给检查结果定级，和记忆召回并列但各管各的 */}
-      <LayaSection settings={settings} updateSettings={updateSettings} notify={notify} />
-
       {memories.length > 0 && (
         <section className="rounded-xl border border-rose-500/30 bg-rose-500/[0.04] p-4">
           <p className="flex items-center gap-1.5 text-xs font-medium text-rose-600 dark:text-rose-400">
@@ -691,12 +687,6 @@ function MemorySystemsGuide() {
       bad: "弊端：用火山托管要开通服务并配方舟凭证；自建要另装常驻服务。",
     },
     {
-      name: "Laya（不是召回引擎）",
-      tag: "可选",
-      good: "只做判断不写文，给口吻/严重度定级。和记忆召回各管各的，可以同时用。",
-      bad: "弊端：要起桥接服务，需要本机 Python + 模型，判定多一次网络耗时。",
-    },
-    {
       name: "MindMemOS（召回引擎）",
       tag: "单选",
       good: "开源记忆操作系统（华为诺亚方舟）：官方云或本地自建都能用，自动抽取、去重、合并记忆。",
@@ -717,7 +707,7 @@ function MemorySystemsGuide() {
       </h2>
       <p className="mt-1 text-xs leading-relaxed opacity-65">
         默认只用「本地写作记忆」就够写完一本书。记忆多到排序不灵时，再去下面的「记忆召回引擎」里挑一个
-        （一次只选一个，别同时开）；换引擎不会丢配置，随时切回来。Laya 是另一回事，它给检查结果定级。
+        （一次只选一个，别同时开）；换引擎不会丢配置，随时切回来。
       </p>
       <div className="mt-2.5 space-y-1.5">
         {items.map((it) => (
@@ -763,8 +753,8 @@ const ENGINE_OPTIONS: { id: RecallEngine; label: string; desc: string }[] = [
 function RecallEngineSection({
   settings, updateSettings, notify,
 }: {
-  settings: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; laya?: LayaSettings; hindsight?: HindsightSettings; mindmem?: MindMemSettings };
-  updateSettings: (patch: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; laya?: LayaSettings; hindsight?: HindsightSettings; mindmem?: MindMemSettings }) => void;
+  settings: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; hindsight?: HindsightSettings; mindmem?: MindMemSettings };
+  updateSettings: (patch: { semanticRecall?: SemanticRecallSettings; viking?: VikingSettings; hindsight?: HindsightSettings; mindmem?: MindMemSettings }) => void;
   notify: (kind: "info" | "success" | "warning" | "danger", text: string, detail?: string) => void;
 }) {
   const engine = resolveRecallEngine(settings);
@@ -1086,69 +1076,6 @@ function VikingSection({
       </div>
       {lastVikingError() ? (
         <p className="mt-1 text-[10px] leading-relaxed opacity-50">上次调用失败：{lastVikingError()}</p>
-      ) : null}
-    </div>
-  );
-}
-
-function LayaSection({
-  settings, updateSettings, notify,
-}: {
-  settings: { laya?: LayaSettings };
-  updateSettings: (patch: { laya?: LayaSettings }) => void;
-  notify: (kind: "info" | "success" | "warning" | "danger", text: string, detail?: string) => void;
-}) {
-  const ly = resolveLaya(settings);
-  const [testing, setTesting] = useState(false);
-  const patch = (p: Partial<LayaSettings>) => updateSettings({ laya: { ...ly, ...p } });
-
-  const runProbe = async () => {
-    setTesting(true);
-    try {
-      const res = await probeLaya({ ...ly });
-      notify(res.ok ? "success" : "warning", res.ok ? "Laya 决策服务可用" : "Laya 不可用", res.message);
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  return (
-    <div className="mt-3 rounded-lg border border-black/8 p-3 dark:border-white/10">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium">Laya 本地决策模型（可选）</p>
-        <Switch isSelected={ly.enabled} onChange={(v) => patch({ enabled: v })}>
-          <Switch.Content>
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-            {ly.enabled ? "已启用" : "未启用"}
-          </Switch.Content>
-        </Switch>
-      </div>
-      <p className="mt-1.5 text-[11px] leading-relaxed opacity-65">
-        Laya 是跑在本机的决策模型：不写文章，只做判断 —— 比如口吻检查里“这句台词走样有多严重”，
-        开启后由它逐条定级（info / warn / error / blocker），关着则统一记 warn。
-      </p>
-      <p className="mt-1 text-[11px] leading-relaxed opacity-65">
-        弊端：要另起桥接服务，需要本机 Python + 模型，第一次装稍麻烦；每次判定多一次网络耗时。
-        没起、连不上 —— 判定自动退回固定值，检查本身不受影响。判定时只发送问题描述，不含正文。
-      </p>
-      <div className={"mt-2 flex flex-wrap items-center gap-2 " + (ly.enabled ? "" : "opacity-50")}>
-        <label className="flex items-center gap-1 text-[11px] opacity-70">
-          服务地址
-          <input
-            value={ly.endpoint}
-            onChange={(e) => patch({ endpoint: e.target.value })}
-            placeholder="http://127.0.0.1:1945"
-            className="w-52 rounded border border-black/10 bg-transparent px-1.5 py-0.5 dark:border-white/15"
-          />
-        </label>
-        <Button size="sm" variant="outline" isPending={testing} onPress={() => void runProbe()}>
-          测试连接
-        </Button>
-      </div>
-      {lastLayaError() ? (
-        <p className="mt-1 text-[10px] leading-relaxed opacity-50">上次调用失败：{lastLayaError()}</p>
       ) : null}
     </div>
   );
