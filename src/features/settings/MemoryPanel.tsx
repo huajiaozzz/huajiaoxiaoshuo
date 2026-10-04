@@ -1112,23 +1112,6 @@ function LayaSection({
     }
   };
 
-  /** 一键启用：填默认地址并测试，没起服务会提示复制命令 */
-  const oneKeyEnable = async () => {
-    const next = { ...ly, enabled: true, endpoint: "http://127.0.0.1:1945" };
-    updateSettings({ laya: next });
-    setTesting(true);
-    try {
-      const res = await probeLaya(next);
-      notify(
-        res.ok ? "success" : "warning",
-        res.ok ? "Laya 已启用" : "已启用，但还没连上服务",
-        res.ok ? "口吻检查会逐条定级" : "请先起桥接服务：复制下面的命令跑一次，再点“测试连接”",
-      );
-    } finally {
-      setTesting(false);
-    }
-  };
-
   return (
     <div className="mt-3 rounded-lg border border-black/8 p-3 dark:border-white/10">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1150,22 +1133,6 @@ function LayaSection({
         弊端：要另起桥接服务，需要本机 Python + 模型，第一次装稍麻烦；每次判定多一次网络耗时。
         没起、连不上 —— 判定自动退回固定值，检查本身不受影响。判定时只发送问题描述，不含正文。
       </p>
-      {!ly.enabled && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          <Button size="sm" variant="primary" isPending={testing} onPress={() => void oneKeyEnable()}>
-            <Zap className="size-3.5" />
-            一键启用
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onPress={() => void copyText("python scripts/laya-bridge.py", notify)}
-          >
-            <Copy className="size-3.5" />
-            复制启动命令
-          </Button>
-        </div>
-      )}
       <div className={"mt-2 flex flex-wrap items-center gap-2 " + (ly.enabled ? "" : "opacity-50")}>
         <label className="flex items-center gap-1 text-[11px] opacity-70">
           服务地址
