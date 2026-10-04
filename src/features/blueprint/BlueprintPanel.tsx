@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button, Card, Chip, TextArea } from "@/components/kit";
 import {
-  AlertTriangle, BookOpen, Check, Copy, PenLine, ScanSearch, Sparkles, Trash2, Wand2,
+  AlertTriangle, BookOpen, Check, Copy, Globe, PenLine, ScanSearch, Sparkles, Trash2, Wand2,
 } from "lucide-react";
 import type { ID, StoryBlueprint, UserTemplateRecord } from "@/core";
 import { findOverlaps, MUST_REPLACE } from "@/core";
@@ -16,6 +16,7 @@ import { listBlueprints } from "@/db/repo/blueprint";
 import { SectionTitle, EmptyHint } from "@/components/common/ui";
 import { formatWords } from "@/utils/format";
 import { countWords } from "@/utils/text";
+import { fetchPageText } from "@/utils/webFetch";
 
 const NL = String.fromCharCode(10);
 
@@ -45,6 +46,23 @@ export function BlueprintPanel({ projectId }: { projectId: ID }) {
   const [sourceTitle, setSourceTitle] = useState("");
   const [sourceText, setSourceText] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
+  const [pageUrl, setPageUrl] = useState("");
+  const [fetching, setFetching] = useState(false);
+
+  /** 网址导入：抓正文填进下面，省去手动复制粘贴 */
+  const runFetchUrl = async () => {
+    setFetching(true);
+    try {
+      const page = await fetchPageText(pageUrl);
+      setSourceText(page.text);
+      if (!sourceTitle.trim() && page.title) setSourceTitle(page.title);
+      notify("success", "已读入网页正文", formatWords(countWords(page.text)) + "，检查一下是不是完整章节");
+    } catch (e) {
+      notify("danger", "读取失败", e instanceof Error ? e.message : String(e));
+    } finally {
+      setFetching(false);
+    }
+  };
 
   const [blueprint, setBlueprint] = useState<StoryBlueprint | null>(null);
   const [activeId, setActiveId] = useState<ID | null>(null);
@@ -231,6 +249,22 @@ export function BlueprintPanel({ projectId }: { projectId: ID }) {
           第一步 · 放入参考书
         </SectionTitle>
         <div className="mt-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              value={pageUrl}
+              onChange={(e) => setPageUrl(e.target.value)}
+              placeholder="或者贴一个网址，直接读正文（小说站/文库页均可）"
+              className="min-w-64 flex-1 rounded-lg border border-black/10 bg-transparent px-2.5 py-1.5 text-xs dark:border-white/15"
+            />
+            <Button size="sm" variant="outline" isPending={fetching} isDisabled={!pageUrl.trim()} onPress={() => void runFetchUrl()}>
+              <Globe className="size-3.5" />
+              从网址读取
+            </Button>
+          </div>
+          <p className="text-[11px] leading-relaxed opacity-50">
+            网址读取经由公开的网页正文服务抓取（只有网址会经过它）；读进来的正文和手动粘贴一样，
+            只在你点「开始拆解」时发给你配置的模型。
+          </p>
           <input
             value={sourceTitle}
             onChange={(e) => setSourceTitle(e.target.value)}
