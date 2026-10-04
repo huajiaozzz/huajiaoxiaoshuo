@@ -97,6 +97,7 @@ export function BlueprintPanel({ projectId }: { projectId: ID }) {
         sourceText,
         blueprint: res.blueprint,
         playbook: res.parts.playbook,
+        bookMap: res.parts.bookMap,
       });
       setActiveId(row.id);
       setActiveSource(sourceText);

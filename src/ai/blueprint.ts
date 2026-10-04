@@ -1,4 +1,7 @@
-import type { BookChapter, ChapterPlaybookEntry, ID, NovelTemplate, StoryBlueprint, TemplateCategory } from "@/core";
+import type {
+  BookChapter, BookMap, CastSlot, ChapterIntel, ChapterPlaybookEntry, CausalDebt, ID,
+  NovelTemplate, StoryBlueprint, TemplateCategory, WorldSlot,
+} from "@/core";
 import { db } from "@/db/database";
 import { runJson, runText, systemWithProject } from "./runner";
 import { jsonInstruction } from "./prompts";
@@ -429,6 +432,9 @@ const PLAYBOOK_SCHEMA = [
   "{",
   '  "chapters": [ { "index": 0, "role": "这一章在全书里的功能角色，如开局钩子/升级/回收", "function": "这一章做了什么（只说写法功能，不复述情节）", "beats": ["按推进顺序的场景节拍，3~6 条，每条一句"], "tension": 3, "hook": "章末钩是怎么下的" } ],',
   '  "digest": "80~120 字的技法速览：这本书的写法精髓（给作者一眼看懂）",',
+  '  "slots": [ { "slotName": "人物功能位代称，如「欠债的反派位」，**不要写原书人名**", "role": "protagonist|antagonist|deuteragonist|mentor|foil|love-interest|sidekick|minor", "fn": "这个位子在情节机器里干什么", "traits": ["怎么写它：3~5 条功能性特征"] } ],',
+  '  "worldSlots": [ { "name": "世界观装置代称，如「代价型异能规则」", "fn": "它在故事里干什么活" } ],',
+  '  "causal": [ { "plant": "在哪里埋了什么类型的坑（功能级）", "payoff": "在什么节点怎么回收", "note": "为什么这个坑管用（可选）" } ],',
   '  "template": {',
   '    "name": "模板名，10 字内，风格化如「XX·XX」",',
   '    "logline": "这类书的一句话卖点（25 字内，不剧透具体情节）",',
@@ -493,13 +499,15 @@ export interface BookTemplateParts {
   template: NovelTemplate;
   playbook: ChapterPlaybookEntry[];
   techniqueDigest: string;
+  /** 全书棋子表：人物功能位 / 世界观功能位 / 因果账本 */
+  bookMap: BookMap;
 }
 
 export interface DeconstructBookResult {
   ok: boolean;
   /** 全书技法/结构拆解（与单章拆解同形，落 blueprints 表） */
   blueprint?: StoryBlueprint;
-  /** 组装好的模板 + 章节配方 + 速览（落 userTemplates 表） */
+  /** 组装好的模板 + 章节配方 + 速览 + 棋子表（模板落 userTemplates，其余落 blueprints） */
   parts?: BookTemplateParts;
   error?: string;
   model: string;
@@ -557,13 +565,16 @@ export async function deconstructBookTemplate(opts: AnalyzeOptions): Promise<Dec
     "### 任务",
     "对上面每一章给出「章节配方」：index 用我标的编号，role/function 用写法功能描述，",
     "beats 按推进顺序列 3~6 条（每条一句话），tension 1~5，hook 说清章末钩的打法。",
-    "再给 digest（全书技法速览 80~120 字）和 template（这类书的可复用模板字段，",
-    "枚举值必须从我列的选项里选）。",
+    "再给 slots：这本书的故事机器需要哪几个人物功能位（**给功能代称，绝不写原书人名**；",
+    "覆盖主角位/对立位/关系位/功能位，5~8 个），worldSlots：需要哪几类世界观装置（2~5 个），",
+    "causal：这本书的坑/回收账本（3~6 对，功能级描述）。",
+    "最后给 digest（全书技法速览 80~120 字）和 template（可复用模板字段，枚举值从我列的选项里选）。",
   ].join(NL);
 
   let playbook: ChapterPlaybookEntry[] = [];
   let digest = "";
   let template: NovelTemplate | null = null;
+  let bookMap: BookMap = { slots: [], worldSlots: [], causal: [] };
   let model = analysis.model;
 
   const res = await runJson<Record<string, unknown>>({
@@ -595,6 +606,24 @@ export async function deconstructBookTemplate(opts: AnalyzeOptions): Promise<Dec
       .filter((r) => r.function && r.beats.length > 0);
     digest = pickStr(d, "digest");
     const t = (d.template as Record<string, unknown>) ?? {};
+    const slots = asArray<Record<string, unknown>>(d.slots).map((s, i) => ({
+      id: "slot_" + (i + 1),
+      slotName: pickStr(s, "slotName") || "功能位 " + (i + 1),
+      role: pickStr(s, "role") || "minor",
+      fn: pickStr(s, "fn"),
+      traits: asArray<unknown>(s.traits).map((x) => asString(x)).filter(Boolean).slice(0, 5),
+    })).filter((s) => s.fn).slice(0, 8);
+    const worldSlots = asArray<Record<string, unknown>>(d.worldSlots).map((s, i) => ({
+      id: "wslot_" + (i + 1),
+      name: pickStr(s, "name") || "装置 " + (i + 1),
+      fn: pickStr(s, "fn"),
+    })).filter((s) => s.fn).slice(0, 5);
+    const causal = asArray<Record<string, unknown>>(d.causal).map((c) => ({
+      plant: pickStr(c, "plant"),
+      payoff: pickStr(c, "payoff"),
+      note: pickStr(c, "note") || undefined,
+    })).filter((c) => c.plant && c.payoff).slice(0, 6);
+    bookMap = { slots, worldSlots, causal };
     const povRaw = pickStr(t, "pov");
     const lenRaw = pickStr(t, "lengthClass");
     const catRaw = pickStr(t, "category");
@@ -644,11 +673,26 @@ export async function deconstructBookTemplate(opts: AnalyzeOptions): Promise<Dec
   if (!playbook.length) {
     playbook = blueprint.chapterTemplate.map((r) => ({ role: r.role, function: r.function, tension: r.tension, beats: [r.function] }));
   }
+  if (!bookMap.slots.length) {
+    // 第二次调用失败的兜底：从既有拆解的功能描述里凑一张最小棋子表
+    const roleOf = (i: number) => (i === 0 ? "protagonist" : i === 1 ? "antagonist" : "minor");
+    bookMap = {
+      slots: blueprint.chapterTemplate.slice(0, 4).map((r, i) => ({
+        id: "slot_" + (i + 1),
+        slotName: r.role + "位",
+        role: roleOf(i),
+        fn: r.function,
+        traits: [],
+      })),
+      worldSlots: [],
+      causal: blueprint.content.turningPoints.slice(0, 4).map((tp) => ({ plant: tp, payoff: "（见结构参照）" })),
+    };
+  }
 
   return {
     ok: true,
     blueprint,
-    parts: { template, playbook, techniqueDigest: digest },
+    parts: { template, playbook, techniqueDigest: digest, bookMap },
     model,
     sampled,
     sampleWords,
@@ -666,6 +710,10 @@ export interface ImitateChapterOptions {
   technique: StoryBlueprint["technique"];
   /** 这一章的配方（整本拆书才有；单章拆解退化为通用章节功能） */
   playbook?: ChapterPlaybookEntry;
+  /** 本章阵型（按需拆章的缓存）；有它时节拍/坑/钩以它为准 */
+  intel?: ChapterIntel;
+  /** 已绑定的「我的元素」卡片：slotName → 你的角色/设定速览 */
+  boundCards?: { slotName: string; card: string }[];
   /** 原书这一章：只学写法，内容必须全新 */
   original: { title: string; text: string; words: number };
   /** 作者这本书里对应的目标章 */
@@ -683,13 +731,16 @@ export interface ImitateChapterResult {
 }
 
 /**
- * 对照仿写一章：技法层照做、本章配方照做、原章原文只当写法参照。
+ * 对照仿写一章：技法层照做、本章阵型照做、原章原文只当写法参照。
+ * 绑定的「我的元素」会以卡片注入 —— 人物是你的、事件是你的，学的只是章法。
  * 提示词里反复强调不得复用原文成句 —— 生成后 UI 层还会拿原文做原创性自检。
  */
 export async function imitateChapter(opts: ImitateChapterOptions): Promise<ImitateChapterResult> {
   const t = opts.technique;
   const wordTarget = Math.max(800, Math.min(5000, opts.wordTarget ?? Math.max(1200, opts.original.words)));
   const pb = opts.playbook;
+  const intel = opts.intel;
+  const boundCards = opts.boundCards ?? [];
 
   const system = await systemWithProject(
     opts.projectId,
@@ -697,18 +748,26 @@ export async function imitateChapter(opts: ImitateChapterOptions): Promise<Imita
       "你是熟练的网文/小说写手，正在按一套拆解好的技法仿写一章。",
       "必须严格遵守：",
       "1. 技法层（视角、信息释放、钩子、对话配比、语言处理）完全照做。",
-      "2. 内容必须来自作者自己的故事与设定，人物、地点、事件一律不用原书的。",
+      "2. 内容必须来自作者自己的故事与设定（下文会给到本章角色的卡片），",
+      "   人物、地点、事件一律不用原书的。",
       "3. 原文章节只用来学「怎么写」，绝不允许复用原书的任何成句表述或情节。",
       "4. 直接输出正文：不要章节标题、不要任何解释或前后缀。",
     ].join(NL),
   );
 
   const user = [
-    "### 这一章的写法配方" + (pb ? "" : "（无逐章配方，按通用章节功能写）"),
+    "### 这一章的写法配方" + (pb || intel ? "" : "（无逐章配方，按通用章节功能写）"),
     pb ? "角色：" + pb.role : "",
     pb ? "本章功能：" + pb.function : "",
-    pb ? "场景节拍（按顺序推进）：" + pb.beats.map((b, i) => (i + 1) + ". " + b).join("；") : "",
-    pb ? "张力等级：" + pb.tension + "/5；章末钩：" + pb.hook : "",
+    intel ? "本章事件节拍（按顺序推进）：" + intel.beats.map((b, i) => (i + 1) + ". " + b).join("；") : pb ? "场景节拍（按顺序推进）：" + pb.beats.map((b, i) => (i + 1) + ". " + b).join("；") : "",
+    intel?.plant ? "本章埋坑：" + intel.plant : "",
+    intel?.payoff ? "本章收坑：" + intel.payoff : "",
+    intel ? "章末钩：" + intel.hook : pb ? "张力等级：" + pb.tension + "/5；章末钩：" + pb.hook : "",
+    "",
+    "### 本章棋子（用这些功能位组织场景，人用下面绑定的你的角色）",
+    intel?.castSlotIds.length
+      ? "出场位：" + intel.castSlotIds.join("、")
+      : "（无本章阵型，按节拍自然安排出场）",
     "",
     "### 要照做的技法",
     "视角：" + t.pov,
@@ -727,6 +786,7 @@ export async function imitateChapter(opts: ImitateChapterOptions): Promise<Imita
     opts.target?.title ? "目标章题：" + opts.target.title : "",
     opts.target?.summary ? "本章大纲：" + opts.target.summary : "",
     opts.target?.goals?.length ? "本章要完成的推进点：" + opts.target.goals.join("；") : "",
+    boundCards.length ? "### 本章出场的你的角色\n" + boundCards.map((c) => "【" + c.slotName + "】" + c.card).join(NL) : "",
     "",
     "### 输出要求",
     "写出一章完整正文，约 " + wordTarget + " 字；场景推进严格按节拍顺序；章末按下钩打法收尾。",
@@ -745,4 +805,166 @@ export async function imitateChapter(opts: ImitateChapterOptions): Promise<Imita
     return { ok: false, error: res.error ?? "模型没有返回正文", model: res.model ?? "" };
   }
   return { ok: true, text: res.text.trim(), model: res.model ?? "" };
+}
+
+/* ------------------------------------------------------------------ */
+/* 按需拆章 + 对应表起草                                                */
+/* ------------------------------------------------------------------ */
+
+const CHAPTER_INTEL_SCHEMA = [
+  "{",
+  '  "castSlotIds": ["本章出场的功能位 id，只能从已知列表里选"],',
+  '  "beats": ["本章事件节拍，3~6 条，功能级（不复述原书情节）"],',
+  '  "worldSlotIds": ["本章用到的世界观装置 id，可选"],',
+  '  "plant": "本章埋下的坑（没有就留空）",',
+  '  "payoff": "本章回收的坑（没有就留空）",',
+  '  "hook": "章末钩的打法"',
+  "}",
+].join(NL);
+
+export interface DeconstructChapterIntelResult {
+  ok: boolean;
+  intel?: ChapterIntel;
+  error?: string;
+  model: string;
+}
+
+/**
+ * 按需拆一章的「阵型」：这章动了哪些位、什么节拍、埋收了什么坑。
+ * 只引用全书拆解出的已知功能位（不给原书人名留位置），结果由调用方缓存进蓝图记录。
+ */
+export async function deconstructChapterIntel(opts: {
+  projectId: ID;
+  slots: CastSlot[];
+  worldSlots: WorldSlot[];
+  causal: CausalDebt[];
+  chapter: { title: string; text: string; words: number };
+  signal?: AbortSignal;
+}): Promise<DeconstructChapterIntelResult> {
+  const system = await systemWithProject(
+    opts.projectId,
+    ["你是资深编辑，正在把一章正文拆成「阵型」：动用了哪些功能位、按什么节拍推进、埋收了什么坑。", "只做功能描述，不复述具体情节，不出现原书人名。"].join(NL),
+  );
+  const user = [
+    "### 这本书的功能位（只能从这里选 id）",
+    ...opts.slots.map((s) => s.id + "：" + s.slotName + "（" + s.role + "）"),
+    ...(opts.worldSlots.length ? ["### 世界观装置", ...opts.worldSlots.map((s) => s.id + "：" + s.name)] : []),
+    ...(opts.causal.length ? ["### 全书坑账（参考）", ...opts.causal.map((c) => "埋：" + c.plant + " → 收：" + c.payoff)] : []),
+    "",
+    "### 本章正文",
+    "【" + opts.chapter.title + " · 约 " + opts.chapter.words + " 字】",
+    chapterSample(opts.chapter.text, 4200),
+    "",
+    "### 任务",
+    "拆出本章阵型：castSlotIds（本章真正出场的位）、beats（3~6 条功能级节拍）、",
+    "worldSlotIds（用到的装置，可选）、plant/payoff（本章埋/收的坑，对应上面的账本，没有就留空）、hook。",
+  ].join(NL);
+
+  const res = await runJson<Record<string, unknown>>({
+    taskKind: "blueprint",
+    projectId: opts.projectId,
+    system,
+    user,
+    jsonSchemaHint: jsonInstruction(CHAPTER_INTEL_SCHEMA),
+    context: { projectId: opts.projectId, sections: ["profile"], budget: 3000 },
+    signal: opts.signal,
+  });
+  if (!res.ok || !res.parsed?.ok) {
+    return { ok: false, error: res.error ?? "模型输出不是合法 JSON", model: res.model ?? "" };
+  }
+  const d = res.parsed.data as Record<string, unknown>;
+  const known = new Set(opts.slots.map((s) => s.id));
+  const knownWorld = new Set(opts.worldSlots.map((s) => s.id));
+  const intel: ChapterIntel = {
+    castSlotIds: asArray<unknown>(d.castSlotIds).map((x) => asString(x)).filter((x) => known.has(x)),
+    beats: asArray<unknown>(d.beats).map((x) => asString(x)).filter(Boolean).slice(0, 6),
+    worldSlotIds: asArray<unknown>(d.worldSlotIds).map((x) => asString(x)).filter((x) => knownWorld.has(x)),
+    plant: pickStr(d, "plant") || undefined,
+    payoff: pickStr(d, "payoff") || undefined,
+    hook: pickStr(d, "hook"),
+  };
+  if (!intel.beats.length) return { ok: false, error: "没拆出有效节拍", model: res.model ?? "" };
+  return { ok: true, intel, model: res.model ?? "" };
+}
+
+const SLOT_DRAFT_SCHEMA = [
+  "{",
+  '  "name": "全新中文名（人物）或条目名（世界观）",',
+  '  "role": "protagonist|antagonist|deuteragonist|mentor|foil|love-interest|sidekick|minor（仅人物时）",',
+  '  "tagline": "一句话定位",',
+  '  "body": "人物卡要点（性格/欲望/缺陷/与主角的关系）或世界观条目正文，150~250 字",',
+  '  "category": "世界观条目分类：geography|history|politics|magic|technology|religion|economy|species|culture|organization|item|language|custom（仅世界观时）"',
+  "}",
+].join(NL);
+
+export interface SlotDraftResult {
+  ok: boolean;
+  draft?: { name: string; role?: string; tagline?: string; body: string; category?: string };
+  error?: string;
+  model: string;
+}
+
+/**
+ * 给功能位起草「你的版本」：按位子的功能写一个全新的人物/设定草稿，
+ * 供作者修改后确认入库。入库的是这份草稿，绝不是原书内容。
+ */
+export async function draftSlotVersion(opts: {
+  projectId: ID;
+  kind: "character" | "world";
+  slotName: string;
+  role?: string;
+  fn: string;
+  traits?: string[];
+  signal?: AbortSignal;
+}): Promise<SlotDraftResult> {
+  const system = await systemWithProject(
+    opts.projectId,
+    [
+      "你在帮作者把一个「功能位」落成他自己的故事元素。",
+      "原书信息只给了位子的功能（干什么活、怎么写它），你要产出的是**全新的**人物或设定：",
+      "名字、来历、细节都必须原创，与任何参考书无关；功能定位（在故事里干什么）要保留。",
+      "本书的既有设定会作为上下文提供 —— 新元素要能融进这本书的世界，而不是孤立的另一套设定。",
+    ].join(NL),
+  );
+  const user = [
+    "### 功能位",
+    "代称：" + opts.slotName,
+    opts.role ? "故事功能定位：" + opts.role : "",
+    "作用：" + opts.fn,
+    opts.traits?.length ? "写法特征：" + opts.traits.join("；") : "",
+    "",
+    "### 任务",
+    opts.kind === "character"
+      ? "起草一个人物卡：全新中文姓名、tagline、150~250 字要点（性格/表层欲望/致命缺陷/与主角的张力关系）。role 从枚举里选一个最贴的。"
+      : "起草一个世界观条目：全新条目名、150~250 字正文（规则怎么运作、代价是什么、跟主角有什么关系）。category 从枚举里选。",
+    "只输出 JSON。",
+  ].filter(Boolean).join(NL);
+
+  const res = await runJson<Record<string, unknown>>({
+    taskKind: "blueprint",
+    projectId: opts.projectId,
+    system,
+    user,
+    jsonSchemaHint: jsonInstruction(SLOT_DRAFT_SCHEMA),
+    context: { projectId: opts.projectId, sections: ["profile"], budget: 4000 },
+    signal: opts.signal,
+  });
+  if (!res.ok || !res.parsed?.ok) {
+    return { ok: false, error: res.error ?? "模型输出不是合法 JSON", model: res.model ?? "" };
+  }
+  const d = res.parsed.data as Record<string, unknown>;
+  const name = pickStr(d, "name");
+  const body = pickStr(d, "body");
+  if (!name || !body) return { ok: false, error: "草稿不完整", model: res.model ?? "" };
+  return {
+    ok: true,
+    draft: {
+      name,
+      role: pickStr(d, "role") || undefined,
+      tagline: pickStr(d, "tagline") || undefined,
+      body,
+      category: pickStr(d, "category") || undefined,
+    },
+    model: res.model ?? "",
+  };
 }

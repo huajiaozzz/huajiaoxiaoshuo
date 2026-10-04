@@ -1,4 +1,4 @@
-import type { ISO, Timestamped } from './base';
+import type { ID, ISO, Timestamped } from './base';
 import type { NovelTemplate } from './templates';
 
 /**
@@ -203,6 +203,77 @@ export interface BlueprintRecord extends Timestamped {
   blueprint: StoryBlueprint;
   /** 章节配方：整本拆书时逐章提取的写法（对照仿写工作台用；老记录没有这个字段） */
   playbook?: ChapterPlaybookEntry[];
+  /** 全书棋子表：人物功能位 + 世界观功能位 + 因果账本（参照用，不入项目库） */
+  bookMap?: BookMap;
+  /** 逐章「阵型」缓存：翻到哪章按需拆哪章，结果缓存在这里（不进项目库） */
+  chapterIntel?: Record<string, ChapterIntel>;
+  /** 对应表：原书功能位 → 我的项目元素（characters/worldEntries 的 id） */
+  bindings?: SlotBinding[];
+}
+
+/**
+ * 人物功能位。刻意**不记原书人名**：拆解工作区只存「这一位在故事机器里干什么」，
+ * 作者自己知道对应谁。这样仿写提示词和自检都干净，也防着把工作区数据直接当内容用。
+ */
+export interface CastSlot {
+  id: string;
+  /** 功能代称，如「偏执侦探位」「欠债的反派位」 */
+  slotName: string;
+  /** 故事功能定位（protagonist / antagonist / mentor / foil …） */
+  role: string;
+  /** 在情节引擎里起什么作用 */
+  fn: string;
+  /** 怎么写它：功能性特征（写法层面） */
+  traits: string[];
+}
+
+/** 世界观功能位：这类书需要哪几种"规则/装置"在 story 里干活 */
+export interface WorldSlot {
+  id: string;
+  name: string;
+  fn: string;
+}
+
+/** 因果账本：这本书埋了什么坑、第几类节点回收（功能级，不记具体情节） */
+export interface CausalDebt {
+  plant: string;
+  payoff: string;
+  note?: string;
+}
+
+export interface BookMap {
+  slots: CastSlot[];
+  worldSlots: WorldSlot[];
+  causal: CausalDebt[];
+}
+
+/**
+ * 单章「阵型」：这一章动用了哪些位、按什么节拍推进、埋/收了哪个坑。
+ * 按需拆（翻到哪章拆哪章），结果缓存进 BlueprintRecord.chapterIntel。
+ */
+export interface ChapterIntel {
+  /** 本章用到的 CastSlot.id */
+  castSlotIds: string[];
+  /** 本章事件节拍（功能级，按推进顺序） */
+  beats: string[];
+  /** 本章触发/依赖的 WorldSlot.id */
+  worldSlotIds?: string[];
+  /** 本章埋下的坑（如有） */
+  plant?: string;
+  /** 本章回收的坑（如有） */
+  payoff?: string;
+  /** 章末钩 */
+  hook: string;
+}
+
+export type SlotKind = "character" | "world";
+
+/** 对应表的一行：功能位 → 我的项目元素 */
+export interface SlotBinding {
+  slotId: string;
+  kind: SlotKind;
+  /** characters / worldEntries 里的元素 id */
+  refId?: ID;
 }
 
 /** 整本拆解时切出的章节。不入库 —— 每次从 sourceText 现切，免得存两份全文 */
