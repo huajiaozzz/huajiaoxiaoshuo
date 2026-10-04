@@ -42,7 +42,7 @@ const LIST_LINE_RE = /^\s*(?:[-*+]\s|\d{1,3}[.、)]\s*)/;
 const CHAPTER_TITLE_RE = /^(?:第\s*[0-9零一二三四五六七八九十百千万两]+\s*[章回节].*|楔子.*|序章.*|序言.*|引子.*|Chapter\s+\d+.*)$/i;
 /** 站点控制项/推广话术 —— 出现在行首（可带 # 记号）就当 chrome 丢掉 */
 const CHROME_LINE_RE =
-  /^(?:上一[章页]|下一[章页]|[返回]?目录|章节目录|加入书签|添加书签|书签|举报|错误举报|去广告|广告|最新章节|新书推荐|点击下一页|继续阅读|开始阅读|立即阅读|版权所有|免责声明|网站地图|联系我[们]?|关于我[们]?|首页|登录|注册|下载(?:本)?(?:书|APP)|APP下载|求收藏|求推荐|求月票|请收藏本站|本书(?:来自|由)|转载自|章节错误?|手机(?:阅读|版)|客户端|跳转到内容|移至侧栏|主菜单|导航|搜索|分享到|随机作品|返回书页)/;
+  /^(?:上一[章页]|下一[章页]|[返回]?目录|章节目录|加入书签|添加书签|书签|举报|错误举报|去广告|广告|最新章节|新书推荐|点击下一页|继续阅读|开始阅读|立即阅读|版权所有|免责声明|网站地图|联系我[们]?|关于我[们]?|首页|登录|注册|下载(?:本)?(?:书|APP)|APP下载|求收藏|求推荐|求月票|请收藏本站|本书(?:来自|由)|转载自|章节错误?|手机(?:阅读|版)|客户端|跳转到内容|移至侧栏|主菜单|导航|搜索|分享到|随机作品|返回书页|一秒记住|请记住|记住本站|本章未完|未完待续)/;
 
 /** 正文段落的门槛：够长的行才算内容（导航和按钮都是短行） */
 const CONTENT_MIN = 25;
@@ -118,6 +118,21 @@ export function extractChapter(md: string, pageFallbackTitle: string): { title: 
   return { title: title || pageFallbackTitle, text: body };
 }
 
+/**
+ * 洗页面标题：小说站的 <title> 都是「第一章XX_书名全文免费阅读 – 站点名」这种 SEO 拼的，
+ * 去掉站名后缀和推广尾巴，留下能当参考书名称的部分。
+ */
+function cleanPageTitle(t: string): string {
+  let x = t.trim();
+  // 站名后缀：最后一个 - – — | 分隔符之后的部分（书名里几乎不会再用这些符号）
+  const sep = Math.max(x.lastIndexOf(" - "), x.lastIndexOf(" – "), x.lastIndexOf(" — "), x.lastIndexOf(" | "));
+  if (sep > 4) x = x.slice(0, sep);
+  // SEO 尾巴：全文免费阅读 / 最新章节 / 无弹窗 这类及其后缀
+  x = x.replace(/[_\s-]*(?:全文免费阅读|全文阅读|免费阅读|最新章节|章节目录|无弹窗|笔趣阁).*$/, "");
+  x = x.replace(/[_]+/g, " ").replace(/\s{2,}/g, " ").trim();
+  return x;
+}
+
 export async function fetchPageText(rawUrl: string): Promise<FetchedPage> {
   const url = normalizeUrl(rawUrl);
   // 抓取偶发失败（上游站点慢/连接重置），带超时重试一次再放弃
@@ -135,7 +150,7 @@ export async function fetchPageText(rawUrl: string): Promise<FetchedPage> {
       if (!raw) throw new Error("读到了空页面");
       // Jina 的返回格式：Title: … / URL Source: … / Markdown Content: …
       const titleMatch = raw.match(/^Title:\s*(.+)$/m);
-      const pageTitle = (titleMatch?.[1] ?? "").trim().replace(/\s*[-–—|].*$/, "").trim(); // 去掉「- 站点名」后缀
+      const pageTitle = cleanPageTitle((titleMatch?.[1] ?? "").trim());
       const contentMatch = raw.match(/^Markdown Content:\s*([\s\S]*)$/m);
       const md = contentMatch?.[1] ?? raw;
       const { title, text } = extractChapter(md, pageTitle);

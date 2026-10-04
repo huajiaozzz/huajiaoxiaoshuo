@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button, Card, Chip, TextArea } from "@/components/kit";
 import {
-  AlertTriangle, BookOpen, Check, Copy, Globe, PenLine, ScanSearch, Sparkles, Trash2, Wand2,
+  AlertTriangle, BookOpen, Check, Copy, Globe, PenLine, RotateCcw, ScanSearch, Sparkles, Trash2, Wand2,
 } from "lucide-react";
 import type { ID, StoryBlueprint, UserTemplateRecord } from "@/core";
 import { findOverlaps, MUST_REPLACE } from "@/core";
@@ -49,19 +49,38 @@ export function BlueprintPanel({ projectId }: { projectId: ID }) {
   const [pageUrl, setPageUrl] = useState("");
   const [fetching, setFetching] = useState(false);
 
-  /** 网址导入：抓正文填进下面，省去手动复制粘贴 */
+  /** 网址导入：抓正文填进下面，省去手动复制粘贴。读新网址 = 开一份新的，旧拆解状态一并清掉 */
   const runFetchUrl = async () => {
     setFetching(true);
     try {
       const page = await fetchPageText(pageUrl);
       setSourceText(page.text);
-      if (!sourceTitle.trim() && page.title) setSourceTitle(page.title);
+      if (page.title) setSourceTitle(page.title);
+      setBlueprint(null);
+      setStory(null);
+      setApplied(null);
+      setStoredTemplate(null);
+      setActiveId(null);
+      setActiveSource("");
       notify("success", "已读入网页正文", formatWords(countWords(page.text)) + "，检查一下是不是完整章节");
     } catch (e) {
       notify("danger", "读取失败", e instanceof Error ? e.message : String(e));
     } finally {
       setFetching(false);
     }
+  };
+
+  /** 清空重填：从零开始拆下一本 */
+  const resetForm = () => {
+    setPageUrl("");
+    setSourceTitle("");
+    setSourceText("");
+    setBlueprint(null);
+    setStory(null);
+    setApplied(null);
+    setStoredTemplate(null);
+    setActiveId(null);
+    setActiveSource("");
   };
 
   const [blueprint, setBlueprint] = useState<StoryBlueprint | null>(null);
@@ -260,6 +279,12 @@ export function BlueprintPanel({ projectId }: { projectId: ID }) {
               <Globe className="size-3.5" />
               从网址读取
             </Button>
+            {(pageUrl || sourceTitle || sourceText) && (
+              <Button size="sm" variant="ghost" onPress={resetForm}>
+                <RotateCcw className="size-3.5" />
+                清空重填
+              </Button>
+            )}
           </div>
           <p className="text-[11px] leading-relaxed opacity-50">
             网址读取经由公开的网页正文服务抓取（只有网址会经过它）；读进来的正文和手动粘贴一样，
