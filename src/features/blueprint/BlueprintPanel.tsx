@@ -8,6 +8,7 @@ import { findOverlaps, MUST_REPLACE } from "@/core";
 import { deconstructBookTemplate, generateFromBlueprint, type GeneratedStory } from "@/ai/blueprint";
 import { applyGeneratedStory, type ApplyBlueprintResult } from "./apply";
 import { ImitationStudio } from "./ImitationStudio";
+import { LibraryPanel } from "./LibraryPanel";
 import { deleteBlueprint, pruneBlueprints, saveBlueprint } from "@/db/repo/blueprint";
 import { pruneUserTemplates, saveUserTemplate } from "@/db/repo/userTemplates";
 import { useAppStore } from "@/app/store";
@@ -38,8 +39,8 @@ const NL = String.fromCharCode(10);
 export function BlueprintPanel({ projectId }: { projectId: ID }) {
   const notify = useAppStore((s) => s.notify);
 
-  /** 两种工作模式：拆书入库（整本拆 → 模板入库）/ 对照仿写（左原书右草稿） */
-  const [view, setView] = useState<"deconstruct" | "imitate">("deconstruct");
+  /** 三种工作模式：书库选书 / 拆书入库（整本拆 → 模板入库）/ 对照仿写（左原书右草稿） */
+  const [view, setView] = useState<"deconstruct" | "imitate" | "library">("deconstruct");
   /** 这次拆解自动入库的模板（仅作 UI 提示用；记录本身在 userTemplates 表） */
   const [storedTemplate, setStoredTemplate] = useState<UserTemplateRecord | null>(null);
 
@@ -112,38 +113,35 @@ export function BlueprintPanel({ projectId }: { projectId: ID }) {
     return findOverlaps(flat, activeSource);
   }, [story, activeSource]);
 
-  const runAnalyze = async () => {
-    if (words < 500) {
-      notify("warning", "样本太短", "至少给 500 字，建议一章正文或一份完整大纲");
-      return;
-    }
+  /** 拆书主流程：手动粘贴 / 网址导入 / 书库导入共用（返回是否成功） */
+  const runDeconstruct = async (title: string, text: string): Promise<boolean> => {
     setAnalyzing(true);
     setStory(null);
     setApplied(null);
     setStoredTemplate(null);
     try {
-      const res = await deconstructBookTemplate({ projectId, sourceText, sourceTitle });
+      const res = await deconstructBookTemplate({ projectId, sourceText: text, sourceTitle: title });
       if (!res.ok || !res.blueprint || !res.parts) {
         notify("danger", "拆解失败", res.error);
-        return;
+        return false;
       }
       setBlueprint(res.blueprint);
       const row = await saveBlueprint({
         projectId,
-        sourceTitle,
-        sourceText,
+        sourceTitle: title,
+        sourceText: text,
         blueprint: res.blueprint,
         playbook: res.parts.playbook,
         bookMap: res.parts.bookMap,
       });
       setActiveId(row.id);
-      setActiveSource(sourceText);
+      setActiveSource(text);
       // 模板自动入库：新建作品的「我的模板」里直接能用
       let saved: UserTemplateRecord | null = null;
       if (res.parts.template.name) {
         saved = await saveUserTemplate({
           name: res.parts.template.name,
-          sourceTitle: sourceTitle.trim() || res.parts.template.name,
+          sourceTitle: title.trim() || res.parts.template.name,
           bookWords: res.sampleWords,
           template: res.parts.template,
           playbook: res.parts.playbook,
@@ -163,11 +161,21 @@ export function BlueprintPanel({ projectId }: { projectId: ID }) {
           (res.sampled ? " · 样本较长，按开头 + 全文取样" : "") +
           (pruned ? " · 清理了 " + pruned + " 份旧拆解" : ""),
       );
+      return true;
     } catch (e) {
       notify("danger", "拆解失败", e instanceof Error ? e.message : String(e));
+      return false;
     } finally {
       setAnalyzing(false);
     }
+  };
+
+  const runAnalyze = async () => {
+    if (words < 500) {
+      notify("warning", "样本太短", "至少给 500 字，建议一章正文或一份完整大纲");
+      return;
+    }
+    await runDeconstruct(sourceTitle, sourceText);
   };
 
   const runGenerate = async () => {
@@ -233,6 +241,7 @@ export function BlueprintPanel({ projectId }: { projectId: ID }) {
         <div className="flex rounded-lg border border-black/10 p-0.5 text-xs dark:border-white/15">
           {(
             [
+              { id: "library" as const, label: "书库", icon: <BookOpen className="size-3.5" /> },
               { id: "deconstruct" as const, label: "拆书入库", icon: <ScanSearch className="size-3.5" /> },
               { id: "imitate" as const, label: "对照仿写", icon: <PenLine className="size-3.5" /> },
             ]
@@ -259,6 +268,18 @@ export function BlueprintPanel({ projectId }: { projectId: ID }) {
       </div>
 
       {view === "imitate" && <ImitationStudio projectId={projectId} rows={saved ?? []} />}
+
+      {view === "library" && (
+        <LibraryPanel
+          projectId={projectId}
+          onPicked={(title, text) => {
+            setSourceTitle(title);
+            setSourceText(text);
+            setView("deconstruct");
+            void runDeconstruct(title, text);
+          }}
+        />
+      )}
 
       {view === "deconstruct" && (
       <>
