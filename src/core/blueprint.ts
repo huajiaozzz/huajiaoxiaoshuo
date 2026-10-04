@@ -1,4 +1,5 @@
 import type { ISO, Timestamped } from './base';
+import type { NovelTemplate } from './templates';
 
 /**
  * 拆书蓝图：把一本参考书"拆开"，提取出可复用的写作技法与结构。
@@ -200,4 +201,46 @@ export interface BlueprintRecord extends Timestamped {
   sourceText: string;
   wordCount: number;
   blueprint: StoryBlueprint;
+  /** 章节配方：整本拆书时逐章提取的写法（对照仿写工作台用；老记录没有这个字段） */
+  playbook?: ChapterPlaybookEntry[];
+}
+
+/** 整本拆解时切出的章节。不入库 —— 每次从 sourceText 现切，免得存两份全文 */
+export interface BookChapter {
+  title: string;
+  text: string;
+  words: number;
+  /** true = 按真实章节标题切出来的；false = 没识别到标题、按长度兜底切段 */
+  fromHeading: boolean;
+}
+
+/**
+ * 章节配方：这一类书的一章通常怎么推进。
+ * 比StoryBlueprint.chapterTemplate 细一层 —— 多了 beats（场景节拍），
+ * 对照仿写时直接当这一章的写作路线图用。
+ */
+export interface ChapterPlaybookEntry {
+  role: string;
+  function: string;
+  tension: number;
+  /** 场景节拍：按推进顺序，每条一句话（3~6 条） */
+  beats: string[];
+  /** 章末钩是怎么下的 */
+  hook?: string;
+}
+
+/** 用户模板库的一条记录：整本拆书自动入库，新建作品时可直接选用 */
+export interface UserTemplateRecord extends Timestamped {
+  id: string;
+  name: string;
+  emoji: string;
+  /** 来源书名 */
+  sourceTitle: string;
+  bookWords: number;
+  /** 直接可喂给新建作品表单的预填模板（NovelTemplate 形状，id 与本记录一致） */
+  template: NovelTemplate;
+  /** 章节配方（对照仿写工作台用） */
+  playbook: ChapterPlaybookEntry[];
+  /** 技法速览：这本书怎么写（一段话，80~120 字） */
+  techniqueDigest: string;
 }

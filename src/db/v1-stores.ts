@@ -98,3 +98,11 @@ export const V6_STORES = {
   ...V5_STORES,
   licenses: 'id, kind, updatedAt',
 } as const;
+
+/**
+ * Dexie v7 的表结构快照（新增 knowledgePages）。
+ */
+export const V7_STORES = {
+  ...V6_STORES,
+  knowledgePages: 'id, projectId, [projectId+kind]',
+} as const;

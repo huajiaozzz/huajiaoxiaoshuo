@@ -1,13 +1,15 @@
 import { useMemo, useState } from "react";
 import { Button, Card, Chip, TextArea } from "@/components/kit";
 import {
-  AlertTriangle, BookOpen, Check, Copy, ScanSearch, Sparkles, Trash2, Wand2,
+  AlertTriangle, BookOpen, Check, Copy, PenLine, ScanSearch, Sparkles, Trash2, Wand2,
 } from "lucide-react";
-import type { ID, StoryBlueprint } from "@/core";
+import type { ID, StoryBlueprint, UserTemplateRecord } from "@/core";
 import { findOverlaps, MUST_REPLACE } from "@/core";
-import { analyzeBlueprint, generateFromBlueprint, type GeneratedStory } from "@/ai/blueprint";
+import { deconstructBookTemplate, generateFromBlueprint, type GeneratedStory } from "@/ai/blueprint";
 import { applyGeneratedStory, type ApplyBlueprintResult } from "./apply";
+import { ImitationStudio } from "./ImitationStudio";
 import { deleteBlueprint, pruneBlueprints, saveBlueprint } from "@/db/repo/blueprint";
+import { pruneUserTemplates, saveUserTemplate } from "@/db/repo/userTemplates";
 import { useAppStore } from "@/app/store";
 import { useLiveQuery } from "dexie-react-hooks";
 import { listBlueprints } from "@/db/repo/blueprint";
@@ -34,6 +36,11 @@ const NL = String.fromCharCode(10);
  */
 export function BlueprintPanel({ projectId }: { projectId: ID }) {
   const notify = useAppStore((s) => s.notify);
+
+  /** 两种工作模式：拆书入库（整本拆 → 模板入库）/ 对照仿写（左原书右草稿） */
+  const [view, setView] = useState<"deconstruct" | "imitate">("deconstruct");
+  /** 这次拆解自动入库的模板（仅作 UI 提示用；记录本身在 userTemplates 表） */
+  const [storedTemplate, setStoredTemplate] = useState<UserTemplateRecord | null>(null);
 
   const [sourceTitle, setSourceTitle] = useState("");
   const [sourceText, setSourceText] = useState("");
@@ -76,21 +83,47 @@ export function BlueprintPanel({ projectId }: { projectId: ID }) {
     setAnalyzing(true);
     setStory(null);
     setApplied(null);
+    setStoredTemplate(null);
     try {
-      const res = await analyzeBlueprint({ projectId, sourceText, sourceTitle });
-      if (!res.ok || !res.blueprint) {
+      const res = await deconstructBookTemplate({ projectId, sourceText, sourceTitle });
+      if (!res.ok || !res.blueprint || !res.parts) {
         notify("danger", "拆解失败", res.error);
         return;
       }
       setBlueprint(res.blueprint);
-      const row = await saveBlueprint({ projectId, sourceTitle, sourceText, blueprint: res.blueprint });
+      const row = await saveBlueprint({
+        projectId,
+        sourceTitle,
+        sourceText,
+        blueprint: res.blueprint,
+        playbook: res.parts.playbook,
+      });
       setActiveId(row.id);
       setActiveSource(sourceText);
+      // 模板自动入库：新建作品的「我的模板」里直接能用
+      let saved: UserTemplateRecord | null = null;
+      if (res.parts.template.name) {
+        saved = await saveUserTemplate({
+          name: res.parts.template.name,
+          sourceTitle: sourceTitle.trim() || res.parts.template.name,
+          bookWords: res.sampleWords,
+          template: res.parts.template,
+          playbook: res.parts.playbook,
+          techniqueDigest: res.parts.techniqueDigest,
+        });
+        await pruneUserTemplates();
+      }
+      setStoredTemplate(saved);
       const pruned = await pruneBlueprints(projectId);
+      const chapterInfo = res.byHeading
+        ? "已分出 " + res.chapterCount + " 章、提取逐章配方"
+        : "未识别到章节标题，按全文取样分析";
       notify(
         "success",
-        "拆解完成",
-        res.sampled ? "样本较长，已按开头 + 全文取样分析" : "已分析全文" + (pruned ? "，清理了 " + pruned + " 份旧拆解" : ""),
+        "拆解完成" + (saved ? "，模板已入库" : ""),
+        chapterInfo + (saved ? "（「新建作品 → 我的模板」可用）" : "") +
+          (res.sampled ? " · 样本较长，按开头 + 全文取样" : "") +
+          (pruned ? " · 清理了 " + pruned + " 份旧拆解" : ""),
       );
     } catch (e) {
       notify("danger", "拆解失败", e instanceof Error ? e.message : String(e));
@@ -157,9 +190,43 @@ export function BlueprintPanel({ projectId }: { projectId: ID }) {
 
   return (
     <div className="space-y-5">
+      {/* ---------- 模式切换 ---------- */}
+      <div className="flex items-center gap-2">
+        <div className="flex rounded-lg border border-black/10 p-0.5 text-xs dark:border-white/15">
+          {(
+            [
+              { id: "deconstruct" as const, label: "拆书入库", icon: <ScanSearch className="size-3.5" /> },
+              { id: "imitate" as const, label: "对照仿写", icon: <PenLine className="size-3.5" /> },
+            ]
+          ).map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setView(m.id)}
+              className={
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1 transition " +
+                (view === m.id ? "bg-black/[0.07] font-medium dark:bg-white/[0.12]" : "opacity-55 hover:opacity-100")
+              }
+            >
+              {m.icon}
+              {m.label}
+            </button>
+          ))}
+        </div>
+        {storedTemplate && (
+          <Chip size="sm" color="success">
+            已入库「{storedTemplate.name}」
+          </Chip>
+        )}
+      </div>
+
+      {view === "imitate" && <ImitationStudio projectId={projectId} rows={saved ?? []} />}
+
+      {view === "deconstruct" && (
+      <>
       {/* ---------- 第一步：给参考书 ---------- */}
       <Card className="p-4">
-        <SectionTitle hint="本地分析，不上传任何内容。建议给一章正文 + 全书大纲，效果最好">
+        <SectionTitle hint="本地分析，不上传任何内容。可以只贴一章，也可以贴整本书 —— 整本会自动分章、拆出逐章配方并存成模板">
           第一步 · 放入参考书
         </SectionTitle>
         <div className="mt-3 space-y-2">
@@ -454,8 +521,10 @@ export function BlueprintPanel({ projectId }: { projectId: ID }) {
         <EmptyHint
           icon={<BookOpen className="size-9" />}
           title="还没有拆解过任何书"
-          description="把一本你觉得写得好的书的正文或大纲贴进来，系统会拆出它的写作技法与结构骨架。技法会照做，内容会全部换成你自己的。"
+          description="把一本你觉得写得好的书贴进来 —— 整本或一章都行。系统拆出它的写作技法与结构骨架并存成模板；之后在「对照仿写」里左原书右草稿，一章一章对着写。"
         />
+      )}
+      </>
       )}
     </div>
   );

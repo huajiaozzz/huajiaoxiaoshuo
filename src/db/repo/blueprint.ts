@@ -1,4 +1,4 @@
-import type { BlueprintRecord, ID, StoryBlueprint } from "@/core";
+import type { BlueprintRecord, ChapterPlaybookEntry, ID, StoryBlueprint } from "@/core";
 import { db } from "../database";
 import { newId } from "@/utils/id";
 import { countWords } from "@/utils/text";
@@ -23,6 +23,8 @@ export async function saveBlueprint(input: {
   sourceTitle: string;
   sourceText: string;
   blueprint: StoryBlueprint;
+  /** 整本拆书时逐章提取的章节配方（对照仿写工作台用）；单章拆解没有 */
+  playbook?: ChapterPlaybookEntry[];
 }): Promise<BlueprintRecord> {
   const now = new Date().toISOString();
   const row: BlueprintRecord = {
@@ -32,6 +34,7 @@ export async function saveBlueprint(input: {
     sourceText: input.sourceText,
     wordCount: countWords(input.sourceText),
     blueprint: input.blueprint,
+    ...(input.playbook ? { playbook: input.playbook } : {}),
     createdAt: now,
     updatedAt: now,
   };

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Button, Input, Label, TextArea, TextField } from "@/components/kit";
-import { RefreshCw, Search, Settings2, Sparkles } from "lucide-react";
+import { RefreshCw, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
 import { SelectChip } from "@/components/common/ui";
+import { appConfirm } from "@/components/common/appConfirm";
 import {
   filterTemplates,
   NOVEL_TEMPLATES,
@@ -14,11 +15,14 @@ import {
   type TemplateCategory,
 } from "@/core";
 import { getProvider, listProviders, resolveModel } from "@/db/repo/settings";
+import { deleteUserTemplate, listUserTemplates } from "@/db/repo/userTemplates";
+import type { UserTemplateRecord } from "@/core";
+import { formatWords } from "@/utils/format";
 import { generateTopics } from "@/ai/topic-gen";
 import { useAppStore } from "@/app/store";
 import { useOpenSettings } from "@/app/useOpenSettings";
 
-type Mode = "library" | "ai";
+type Mode = "library" | "mine" | "ai";
 
 const LENGTH_TEXT: Record<LengthClass, string> = {
   short: "短篇",
@@ -37,9 +41,10 @@ const POV_TEXT: Record<PovStyle, string> = {
 };
 
 /**
- * 小说模板区：两种来源，同一套预填路径。
+ * 小说模板区：三种来源，同一套预填路径。
  *
  * · 内置模板库 —— 30 个写死的套路，离线可用、零 token；
+ * · 我的模板 —— 「拆书仿写」整本拆解后自动入库的模板，作者自己的手感库；
  * · AI 选题 —— 围绕作者的灵感现出几个方向（人物、体裁、种子一起给），
  *   选中的结果形状与内置模板完全相同，所以「创建并用 AI 建档」怎么走，
  *   这条路径就怎么走。
@@ -75,7 +80,9 @@ export function TemplatePicker({
   const settings = useAppStore((s) => s.settings);
   const setNewProjectOpen = useAppStore((s) => s.setNewProjectOpen);
   const openSettings = useOpenSettings();
+  const notify = useAppStore((s) => s.notify);
   const providers = useLiveQuery(() => listProviders(), [], undefined);
+  const mine = useLiveQuery(() => listUserTemplates(), [], undefined);
 
   /**
    * 能不能生成：用**真正会被调用的那个模型**判断（走任务路由 > 全局默认），
@@ -137,6 +144,7 @@ export function TemplatePicker({
           {(
             [
               { id: "library" as Mode, label: "内置模板库" },
+              { id: "mine" as Mode, label: "我的模板" },
               { id: "ai" as Mode, label: "AI 选题" },
             ]
           ).map((m) => (
@@ -188,6 +196,8 @@ export function TemplatePicker({
             </div>
           )}
         </>
+      ) : mode === "mine" ? (
+        <MinePanel records={mine} selectedId={selectedId} onPick={onChange} />
       ) : (
         <>
           <p className="text-xs leading-relaxed opacity-55">
@@ -313,6 +323,59 @@ function CategoryChips({
 }
 
 /** 内置模板与 AI 选题共用一张卡片：形状一样，预填路径才不会分叉 */
+/**
+ * 「我的模板」页签：拆书仿写整本拆解后自动入库的模板。
+ * template 字段就是 NovelTemplate 形状，卡片直接复用 TemplateCard。
+ */
+function MinePanel({
+  records,
+  selectedId,
+  onPick,
+}: {
+  records: UserTemplateRecord[] | undefined;
+  selectedId?: string;
+  onPick: (t: NovelTemplate | null) => void;
+}) {
+  const notify = useAppStore((s) => s.notify);
+  if (records === undefined) {
+    return <p className="rounded-xl border border-dashed border-black/10 px-4 py-6 text-center text-xs opacity-50 dark:border-white/15">加载中…</p>;
+  }
+  if (records.length === 0) {
+    return (
+      <p className="rounded-xl border border-dashed border-black/10 px-4 py-6 text-center text-xs leading-relaxed opacity-50 dark:border-white/15">
+        还没有自己的模板。去「拆书仿写」把一整本书贴进去拆解，
+        会自动生成一套模板入库 —— 之后新建作品就能直接用它的手法开书。
+      </p>
+    );
+  }
+  return (
+    <div className="grid max-h-72 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+      {records.map((r) => (
+        <div key={r.id} className="relative">
+          <TemplateCard template={r.template} active={selectedId === r.template.id} onPick={onPick} />
+          <button
+            type="button"
+            title={"删除模板「" + r.name + "」"}
+            aria-label={"删除模板「" + r.name + "」"}
+            className="absolute right-2 top-2 rounded p-1 opacity-30 transition hover:text-rose-500 hover:opacity-100"
+            onClick={async () => {
+              if (!(await appConfirm("删除模板「" + r.name + "」？已用它建的书不受影响。", { title: "删除模板", danger: true }))) return;
+              await deleteUserTemplate(r.id);
+              if (selectedId === r.template.id) onPick(null);
+              notify("info", "已删除模板", r.name);
+            }}
+          >
+            <Trash2 className="size-3" />
+          </button>
+          <p className="mt-0.5 px-1 text-[10px] leading-relaxed opacity-45">
+            拆自「{r.sourceTitle}」 · {formatWords(r.bookWords)} · {r.playbook.length} 章配方
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function TemplateCard({
   template: t,
   active,
