@@ -40,3 +40,6 @@ src-tauri/gen/
 
 # video2code 插件缓存（本地工作目录，不进仓库）
 .v2c/
+
+# 视频录制工作目录（录屏与转码产物，不进仓库）
+recordings/
