@@ -11,7 +11,7 @@
 
 ## 桌面版安装
 
-安装包在 [Releases](https://github.com/qw1295353129/huajiaoxiaoshuo/releases) 页面，打 `v*` tag 后 CI
+安装包在 [Releases](https://github.com/huajiaozzz/huajiaoxiaoshuo/releases) 页面，打 `v*` tag 后 CI
 自动构建挂上：Mac 是两个 dmg（Apple Silicon 选 `aarch64`、Intel 选 `x64`），Windows 选
 `setup.exe`（NSIS）或 `.msi`，安装界面均为简体中文。
 

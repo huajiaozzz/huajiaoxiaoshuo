@@ -22,7 +22,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const REPO = 'https://github.com/qw1295353129/huajiaoxiaoshuo';
+const REPO = 'https://github.com/huajiaozzz/huajiaoxiaoshuo';
 const KIND_LABEL = { added: '新增', improved: '优化', fixed: '修复' };
 
 const argv = process.argv.slice(2);

@@ -1,7 +1,7 @@
 /**
  * LicenseHub 客户端 SDK（零依赖，浏览器 / Node 18+ / Electron / Tauri 通用）。
  *
- * 来源：https://github.com/qw1295353129/huajiao-license-hub/blob/main/sdk/license-client.ts
+ * 来源：https://github.com/huajiaozzz/huajiao-license-hub/blob/main/sdk/license-client.ts
  * 取回日期：2026-09-27。
  *
  * **与上游的差异**（同步上游时先 diff 这三处）：

@@ -1,7 +1,7 @@
 import { APP_VERSION } from '@/core/changelog';
 
-const RELEASES_URL = 'https://api.github.com/repos/qw1295353129/huajiaoxiaoshuo/releases/latest';
-const RELEASE_PAGE = 'https://github.com/qw1295353129/huajiaoxiaoshuo/releases';
+const RELEASES_URL = 'https://api.github.com/repos/huajiaozzz/huajiaoxiaoshuo/releases/latest';
+const RELEASE_PAGE = 'https://github.com/huajiaozzz/huajiaoxiaoshuo/releases';
 
 export interface UpdateInfo {
   available: boolean;
