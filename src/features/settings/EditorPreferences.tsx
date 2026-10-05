@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Button, Chip } from "@/components/kit";
 import { Minus, Plus, RotateCcw } from "lucide-react";
 import { useAppStore } from "@/app/store";
@@ -20,6 +21,51 @@ export function EditorPreferences() {
   const updateSettings = useAppStore((s) => s.updateSettings);
   const notify = useAppStore((s) => s.notify);
   const autoExtract = resolveAutoExtract(settings);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * 自定义 Logo：读图 → 画到 canvas 缩到最长边 128px → PNG data URL 存进 settings。
+   * 缩图而不是存原图：设置存在 localStorage，几 MB 的原图会把存储写爆，
+   * 而 Logo 的展示尺寸最大也就侧栏 24px / 标签页 32px，128px 足够清晰。
+   */
+  function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // 清掉才能连续选同一个文件
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      notify("danger", "请选择图片文件");
+      return;
+    }
+    const fr = new FileReader();
+    fr.onerror = () => notify("danger", "读取图片失败");
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        // SVG 等没有固有尺寸的图兜底 256，避免按 0 缩放得到空图
+        const iw = img.naturalWidth || 256;
+        const ih = img.naturalHeight || 256;
+        const scale = Math.min(1, 128 / Math.max(iw, ih));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(iw * scale));
+        canvas.height = Math.max(1, Math.round(ih * scale));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          notify("danger", "图片处理失败");
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        try {
+          updateSettings({ brandLogo: canvas.toDataURL("image/png") });
+          notify("success", "Logo 已更新");
+        } catch {
+          notify("danger", "图片处理失败");
+        }
+      };
+      img.onerror = () => notify("danger", "无法识别的图片格式");
+      img.src = String(fr.result);
+    };
+    fr.readAsDataURL(file);
+  }
 
   return (
     <div className="space-y-5">
@@ -200,6 +246,46 @@ export function EditorPreferences() {
             ))}
           </div>
         </div>
+
+        <div className="mt-5 space-y-4 border-t border-black/8 pt-4 dark:border-white/10">
+          <label className="block text-xs opacity-70">
+            名称自定义
+            <input
+              type="text"
+              value={settings.brandName ?? ""}
+              maxLength={24}
+              placeholder="花椒写作"
+              onChange={(e) => updateSettings({ brandName: e.target.value.slice(0, 24) || undefined })}
+              className="mt-1 w-full rounded-lg border border-black/10 bg-transparent px-2 py-1.5 text-sm dark:border-white/15"
+            />
+            <span className="mt-1 block text-[11px] opacity-50">
+              显示在左上角、浏览器标签页和「关于」页；留空恢复默认。
+            </span>
+          </label>
+
+          <div>
+            <p className="mb-2 text-xs opacity-70">Logo 自定义</p>
+            <div className="flex items-center gap-3">
+              <img
+                src={settings.brandLogo ?? "/icon.svg"}
+                alt=""
+                className="size-10 shrink-0 rounded-lg border border-black/10 bg-white object-contain p-1 dark:border-white/15 dark:bg-neutral-800"
+              />
+              <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={onLogoFile} />
+              <Button variant="outline" size="sm" onPress={() => logoInputRef.current?.click()}>
+                上传图片
+              </Button>
+              {settings.brandLogo && (
+                <Button variant="ghost" size="sm" onPress={() => updateSettings({ brandLogo: undefined })}>
+                  恢复默认图标
+                </Button>
+              )}
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed opacity-50">
+              支持常见图片格式，自动缩到 128px 后只存在本机；会用在左上角与浏览器标签页。
+            </p>
+          </div>
+        </div>
       </section>
 
       <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
@@ -235,6 +321,8 @@ export function EditorPreferences() {
               snapshotIntervalMin: DEFAULT_SETTINGS.snapshotIntervalMin,
               typewriterScroll: DEFAULT_SETTINGS.typewriterScroll,
               flowByDefault: DEFAULT_SETTINGS.flowByDefault,
+              brandName: DEFAULT_SETTINGS.brandName,
+              brandLogo: DEFAULT_SETTINGS.brandLogo,
             });
             notify("success", "已恢复默认写作偏好");
           }}

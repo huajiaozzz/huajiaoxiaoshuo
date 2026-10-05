@@ -50,6 +50,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const appState = await ensureAppState();
       const settings = loadSettings();
       applyTheme(settings.theme);
+      applyBrand(settings);
       syncAuthorProfile(settings);
       // initError 显式清空：重试 bootstrap 成功后要能离开错误态
       set({ appState, settings, ready: true, initError: undefined });
@@ -73,6 +74,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const next = { ...get().settings, ...patch };
     saveSettings(next);
     applyTheme(next.theme);
+    applyBrand(next);
     syncAuthorProfile(next);
     set({ settings: next });
   },
@@ -131,6 +133,24 @@ function syncAuthorProfile(settings: AppSettings) {
  * 不会出现"CSS 里加了、applyTheme 里忘了"的静默失效。
  */
 export const COLOR_THEMES: readonly string[] = ["warm", "soft"];
+
+/** 未自定义品牌时的标签页标题（与 index.html 的 <title> 一致） */
+const DEFAULT_PAGE_TITLE = "花椒写作平台 · AI 小说创作工作台";
+
+/**
+ * 把自定义品牌落到浏览器侧：标签页标题与 favicon。
+ * 侧栏 logo/名字是 React 直接读 settings 渲染的，不经过这里。
+ * bootstrap 与每次 updateSettings 时调用，改完立即生效、刷新后依旧。
+ */
+export function applyBrand(settings: AppSettings) {
+  if (typeof document === "undefined") return;
+  const name = settings.brandName?.trim();
+  document.title = name ? `${name} · AI 小说创作工作台` : DEFAULT_PAGE_TITLE;
+  const link = document.querySelector('link[rel="icon"]');
+  const want = settings.brandLogo || "/favicon.svg";
+  // href 相同时不重设：避免每次改设置都让浏览器重发一次图标请求
+  if (link && link.getAttribute("href") !== want) link.setAttribute("href", want);
+}
 
 export function applyTheme(theme: Theme) {
   if (typeof document === "undefined") return;

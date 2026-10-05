@@ -18,6 +18,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   candidateCount: 3,
   stream: true,
   allowCloud: true,
+  brandName: undefined,
+  brandLogo: undefined,
   penName: undefined,
   defaultGenres: [],
   defaultPov: undefined,
@@ -41,6 +43,12 @@ export function loadSettings(): AppSettings {
     // 已下线的主题（如 vivid）仍可能留在老数据里，回落到默认
     if (!(THEMES as readonly string[]).includes(merged.theme)) {
       merged.theme = DEFAULT_SETTINGS.theme;
+    }
+    // 品牌自定义：只认图片 data URL（防止手改存储塞进任意 URL）；名称去首尾空白并限长
+    if (merged.brandLogo && !/^data:image\//.test(merged.brandLogo)) merged.brandLogo = undefined;
+    if (merged.brandName) {
+      const name = merged.brandName.trim().slice(0, 24);
+      merged.brandName = name || undefined;
     }
     return merged;
   } catch {

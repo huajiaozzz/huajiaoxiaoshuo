@@ -24,6 +24,9 @@ const NAV_SCROLL_KEY = "huajiao:navScroll";
 export function ProjectNav({ className }: { className?: string }) {
   const project = useAppStore((s) => s.project);
   const setNewProjectOpen = useAppStore((s) => s.setNewProjectOpen);
+  // 品牌可自定义（设置 → 界面）：名字/Logo 没设就用默认羽毛笔
+  const brandName = useAppStore((s) => s.settings.brandName?.trim() || "花椒写作");
+  const brandLogo = useAppStore((s) => s.settings.brandLogo || "/icon.svg");
   const { projectId = "" } = useParams<{ projectId: string }>();
   const id = project?.id ?? projectId;
   const openSettings = useOpenSettings();
@@ -58,10 +61,10 @@ export function ProjectNav({ className }: { className?: string }) {
       <NavLink
         to={ROUTES.home}
         className="mb-4 flex items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-black/5 dark:hover:bg-white/5"
-        aria-label="花椒写作 · 回到我的作品"
+        aria-label={`${brandName} · 回到我的作品`}
       >
-        <img src="/icon.svg" alt="" className="size-6 shrink-0 rounded-md" width={24} height={24} />
-        <span className="truncate text-sm font-semibold tracking-tight">花椒写作</span>
+        <img src={brandLogo} alt="" className="size-6 shrink-0 rounded-md object-contain" width={24} height={24} />
+        <span className="truncate text-sm font-semibold tracking-tight">{brandName}</span>
       </NavLink>
 
       <div

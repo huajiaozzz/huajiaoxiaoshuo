@@ -55,6 +55,12 @@ export interface AppSettings {
   /** 给 AI 的长期补充指令 */
   globalInstructions?: string;
 
+  // ---------- 品牌自定义（设置 → 界面） ----------
+  /** 自定义应用名，显示在左上角与浏览器标签页；空/未设置 = 默认「花椒写作」 */
+  brandName?: string;
+  /** 自定义 Logo（data URL 图片），显示在左上角并替换 favicon；未设置 = 默认羽毛笔图标 */
+  brandLogo?: string;
+
   // ---------- 语义召回（可选，默认关闭） ----------
   semanticRecall?: SemanticRecallSettings;
   // ---------- OpenViking 增强召回（可选，默认关闭） ----------

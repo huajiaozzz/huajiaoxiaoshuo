@@ -1108,10 +1108,11 @@ function UpdateSection() {
 }
 
 function AboutTab() {
+  const brandName = useAppStore((s) => s.settings.brandName?.trim());
   return (
     <div className="space-y-4 text-sm">
       <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
-        <h2 className="font-semibold">花椒写作平台 <span className="ml-1 text-xs font-normal opacity-50">v{APP_VERSION}</span></h2>
+        <h2 className="font-semibold">{brandName || "花椒写作平台"} <span className="ml-1 text-xs font-normal opacity-50">v{APP_VERSION}</span></h2>
         <p className="mt-1.5 text-xs leading-relaxed opacity-70">
           为长篇小说写作而设计的本地优先工作台。结构化的设定库 + 精准的上下文组装 + 多模型可插拔，
           目标只有一个：让 AI 写出来的东西不用大改。
