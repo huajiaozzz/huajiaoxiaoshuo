@@ -325,12 +325,23 @@ export function BlueprintPanel({ projectId }: { projectId: ID }) {
           />
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] opacity-55">{words > 0 ? formatWords(words) : "尚未输入"}</span>
-            {words > 0 && words < 500 && (
-              <Chip size="sm" color="warning">
-                太短，拆不出结构
-              </Chip>
-            )}
-            <Button className="ml-auto" size="sm" variant="primary" isPending={analyzing} onPress={() => void runAnalyze()}>
+            {/*
+             * 样本不够时主按钮是"点了也只弹角落提示"的状态 —— 与其让人以为按钮失灵，
+             * 不如直接禁用并把原因写在旁边；拆解进行中同理，避免以为没反应再连点。
+             */}
+            {analyzing ? (
+              <Chip size="sm" color="accent">正在拆解，模型返回前按钮保持转圈</Chip>
+            ) : words < 500 ? (
+              <Chip size="sm" color="warning">{words === 0 ? "先粘贴样本，至少 500 字" : "太短，拆不出结构"}</Chip>
+            ) : null}
+            <Button
+              className="ml-auto"
+              size="sm"
+              variant="primary"
+              isPending={analyzing}
+              isDisabled={words < 500}
+              onPress={() => void runAnalyze()}
+            >
               <ScanSearch className="size-3.5" />
               开始拆解
             </Button>
