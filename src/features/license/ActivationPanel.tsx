@@ -160,6 +160,47 @@ export function ActivationPanel() {
 
       <PriceTable />
 
+      <ContactAuthor />
+
+    </div>
+  );
+}
+
+/** 联系作者：加微信 / 微信付款 / 支付宝付款（图片点开看大图，扫码更稳） */
+const CONTACT_QRS = [
+  { src: "/contact/contact-wechat.jpg", label: "加作者微信", hint: "咨询、购买激活码" },
+  { src: "/contact/contact-wechat-pay.jpg", label: "微信支付", hint: "付款后请加微信发截图" },
+  { src: "/contact/contact-alipay.jpg", label: "支付宝", hint: "付款后请加微信发截图" },
+] as const;
+
+function ContactAuthor() {
+  return (
+    <div className="rounded-xl border border-black/8 p-4 dark:border-white/10">
+      <p className="text-sm font-medium">联系作者</p>
+      <p className="mt-1 text-xs leading-relaxed opacity-60">
+        扫码加微信，或直接扫码付款；付完把「付款截图 + 昵称」发给作者，会发来 16 位授权码。
+        图片点开可以看大图，扫码更清楚。
+      </p>
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        {CONTACT_QRS.map((q) => (
+          <a
+            key={q.src}
+            href={q.src}
+            target="_blank"
+            rel="noreferrer"
+            className="group block"
+          >
+            <img
+              src={q.src}
+              alt={q.label}
+              loading="lazy"
+              className="w-full rounded-lg border border-black/8 transition group-hover:border-black/25 dark:border-white/10 dark:group-hover:border-white/30"
+            />
+            <p className="mt-1.5 text-xs font-medium">{q.label}</p>
+            <p className="text-[11px] opacity-55">{q.hint}</p>
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
