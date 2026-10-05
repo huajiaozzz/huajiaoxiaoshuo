@@ -24,9 +24,14 @@ export function StageStepper({
 }) {
   const map = new Map<GenesisStageKind, GenesisStage>();
   for (const stage of stages) map.set(stage.kind, stage);
-  const list: GenesisStage[] = PIPELINE.map(
-    (kind) => map.get(kind) ?? { kind, status: "pending" as const },
-  );
+  // 生成深度提前截断的阶段（until=premise/world 时分卷与大纲永远不会跑）
+  // 在结束后不再显示 —— 一直挂着 pending 看起来像卡死。
+  const list = PIPELINE.flatMap((kind) => {
+    const stage = map.get(kind);
+    if (!stage) return [];
+    if (!busy && stage.status === "pending") return [];
+    return [stage];
+  });
   const doneCount = list.filter((s) => s.status === "done").length;
 
   return (

@@ -1,4 +1,4 @@
-import type { GenesisStageKind, GenesisRun } from "@/core";
+import type { GenesisStage, GenesisStageKind, GenesisRun } from "@/core";
 import type { ApplyGenesisOptions, BibleData } from "@/ai/genesis";
 import { WORLD_CATEGORY_LABELS } from "@/db/defaults";
 
@@ -67,6 +67,22 @@ export function categoryLabel(key: string): string {
 // ---------------- 阶段 ----------------
 
 export const PIPELINE: GenesisStageKind[] = ["premise", "characters", "world", "structure", "outline"];
+
+/** 生成深度（与 ai/genesis.ts 的 GenesisOptions["until"] 一致） */
+export type UntilStageId = "premise" | "characters" | "world" | "structure" | "outline";
+
+/**
+ * 按生成深度截断的阶段清单（尚未开跑时的流水线预览）。
+ * 注意引擎在 premise 一步就会把人物/世界观一起出齐（见 runGenesis），
+ * 所以截断点小于 structure 时，实际上只有第一个大阶段要跑。
+ */
+export function plannedStages(until?: UntilStageId): GenesisStage[] {
+  const stop = until ? PIPELINE.indexOf(until) : PIPELINE.length - 1;
+  return PIPELINE.slice(0, stop + 1).map((kind, index) => ({
+    kind,
+    status: index === 0 ? ("running" as const) : ("pending" as const),
+  }));
+}
 
 export const STAGE_LABELS: Record<GenesisStageKind, string> = {
   premise: "核心设定",

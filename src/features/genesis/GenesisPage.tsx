@@ -11,7 +11,7 @@ import { useInterval } from "@/app/hooks";
 import { useAppStore } from "@/app/store";
 import { useOpenSettings } from "@/app/useOpenSettings";
 import { ROUTES } from "@/app/routes";
-import { listGenesisRuns } from "@/db/repo/genesis";
+import { listGenesisRuns, updateGenesisRun } from "@/db/repo/genesis";
 import { getProvider, listProviders, resolveModel } from "@/db/repo/settings";
 import { applyGenesis, runGenesis, type ApplyGenesisResult } from "@/ai/genesis";
 import { ActivationRequired } from "@/features/license/ActivationRequired";
@@ -24,10 +24,10 @@ import {
   ALL_PARTS,
   PART_KEYS,
   PART_LABELS,
-  PIPELINE,
   RUN_STATUS_META,
   bibleOf,
   filterRun,
+  plannedStages,
   type PartKey,
 } from "./helpers";
 
@@ -160,10 +160,42 @@ export function GenesisPage() {
   // 进入页面就读一次历史，并默认展示最近一次的产物
   useEffect(() => {
     let alive = true;
-    void loadHistory().then((list) => {
-      if (!alive || pollRef.current || list.length === 0) return;
+    void (async () => {
+      let list = await loadHistory();
+      if (!alive) return;
+      /*
+       * 上个会话被页面刷新/关闭打断的 run 会永远停在 running，转圈转不停，
+       * 看起来就像卡死。进页面时（本页没有正在进行的生成）把 30 分钟前的
+       * 残留 running 标记为失败 —— 真在跑的生成几分钟内就会完，不会误伤。
+       */
+      if (!pollRef.current) {
+        const stale = list.filter(
+          (r) =>
+            (r.status === "running" || (r.stages ?? []).some((s) => s.status === "running")) &&
+            Date.now() - new Date(r.createdAt).getTime() > 30 * 60_000,
+        );
+        if (stale.length > 0) {
+          await Promise.all(
+            stale.map((r) =>
+              updateGenesisRun(r.id, {
+                status: "failed",
+                error: "生成被中断（页面刷新或关闭），重新生成即可",
+                // 停在 running 的阶段也要一并置败，否则进度条会一直转圈
+                stages: (r.stages ?? []).map((s) =>
+                  s.status === "running"
+                    ? { ...s, status: "failed" as const, error: "生成被中断（页面刷新或关闭）" }
+                    : s,
+                ),
+              }),
+            ),
+          );
+          list = await loadHistory();
+          if (!alive) return;
+        }
+      }
+      if (list.length === 0) return;
       setRun((prev) => prev ?? list[0]);
-    });
+    })();
     return () => {
       alive = false;
     };
@@ -293,10 +325,7 @@ export function GenesisPage() {
   const stageList = run?.stages?.length
     ? run.stages
     : busy
-      ? PIPELINE.map((kind, index) => ({
-          kind,
-          status: index === 0 ? ("running" as const) : ("pending" as const),
-        }))
+      ? plannedStages(until)
       : [];
 
   const hasProduct = Boolean(run && run.stages.some((s) => s.data));

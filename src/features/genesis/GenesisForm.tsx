@@ -33,6 +33,24 @@ const UNTIL_OPTIONS: { value: UntilStage; label: string }[] = [
   { value: "outline", label: "全部五阶段（推荐）" },
 ];
 
+/** 每卷章节数只影响分卷与章节大纲两个阶段，提前截断的深度不显示这个字段 */
+const UNTIL_NEEDS_CHAPTERS: Record<UntilStage, boolean> = {
+  premise: false,
+  characters: false,
+  world: false,
+  structure: true,
+  outline: true,
+};
+
+/** 开始按钮旁的耗时提示，跟着生成深度走 */
+const UNTIL_RUN_HINT: Record<UntilStage, string> = {
+  premise: "一次出齐核心设定、人物与世界观，通常 1 分钟内。",
+  characters: "一次出齐核心设定、人物与世界观，通常 1 分钟内。",
+  world: "一次出齐核心设定、人物与世界观，通常 1 分钟内。",
+  structure: "先出设定再拆分卷结构，通常需要 1~2 分钟。",
+  outline: "五个阶段串行执行，通常需要 1~3 分钟。",
+};
+
 interface Props {
   seed: string;
   onSeedChange: (value: string) => void;
@@ -252,25 +270,27 @@ export function GenesisForm({
             ))}
           </select>
         </div>
-        <div>
-          <Label className="mb-2 block">每卷章节数</Label>
-          <Input
-            type="number"
-            value={String(chaptersPerVolume)}
-            onChange={(e) => {
-              const next = Number(e.target.value.replace(/[^0-9]/g, ""));
-              // 兜底给当前篇幅的建议值，而不是写死 12；上限 200（超长细纲交给截断重试兜底）
-              onChaptersPerVolumeChange(
-                Number.isFinite(next) && next > 0 ? Math.min(200, next) : lengthProfile(constraints.lengthClass).chaptersPerVolume,
-              );
-            }}
-          />
-          <p className="mt-1.5 text-[11px] leading-relaxed opacity-50">
-            换篇幅会自动带出对应建议值（{LENGTH_OPTIONS.find((o) => o.value === constraints.lengthClass)?.label}：
-            {lengthProfile(constraints.lengthClass).chaptersPerVolume} 章 / 卷，共 {lengthProfile(constraints.lengthClass).volumes} 卷，
-            单章约 {lengthProfile(constraints.lengthClass).chapterWords} 字）。手动改过之后就不再自动覆盖。
-          </p>
-        </div>
+        {UNTIL_NEEDS_CHAPTERS[until] && (
+          <div>
+            <Label className="mb-2 block">每卷章节数</Label>
+            <Input
+              type="number"
+              value={String(chaptersPerVolume)}
+              onChange={(e) => {
+                const next = Number(e.target.value.replace(/[^0-9]/g, ""));
+                // 兜底给当前篇幅的建议值，而不是写死 12；上限 200（超长细纲交给截断重试兜底）
+                onChaptersPerVolumeChange(
+                  Number.isFinite(next) && next > 0 ? Math.min(200, next) : lengthProfile(constraints.lengthClass).chaptersPerVolume,
+                );
+              }}
+            />
+            <p className="mt-1.5 text-[11px] leading-relaxed opacity-50">
+              换篇幅会自动带出对应建议值（{LENGTH_OPTIONS.find((o) => o.value === constraints.lengthClass)?.label}：
+              {lengthProfile(constraints.lengthClass).chaptersPerVolume} 章 / 卷，共 {lengthProfile(constraints.lengthClass).volumes} 卷，
+              单章约 {lengthProfile(constraints.lengthClass).chapterWords} 字）。手动改过之后就不再自动覆盖。
+            </p>
+          </div>
+        )}
       </div>
 
       {!modelReady && (
@@ -302,7 +322,7 @@ export function GenesisForm({
           </Button>
         )}
         <span className="text-[11px] opacity-50">
-          {busy ? "已经完成的阶段会保留，取消不会丢结果。" : "五个阶段串行执行，通常需要 1~3 分钟。"}
+          {busy ? "已经完成的阶段会保留，取消不会丢结果。" : UNTIL_RUN_HINT[until]}
         </span>
       </div>
     </Card>
