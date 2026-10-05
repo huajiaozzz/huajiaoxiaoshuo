@@ -12,6 +12,49 @@
 
 const READER_PREFIX = "https://r.jina.ai/";
 
+/**
+ * 经 Jina Reader 抓一个 URL 的原始返回（带渲染、CORS 可用）。
+ * 网址导入和书库的笔趣阁书源共用这一条管道；调用方自己解析内容。
+ * returnHtml=true 时拿渲染后的完整 HTML（目录解析需要全量链接，markdown 会丢）。
+ * 60s 超时 + 一次重试；429/非 200 抛业务错误。
+ */
+export async function jinaFetch(
+  rawUrl: string,
+  opts: { signal?: AbortSignal; returnHtml?: boolean } = {},
+): Promise<string> {
+  let lastErr: unknown = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 60_000);
+    try {
+      const res = await fetch(READER_PREFIX + rawUrl, {
+        headers: { Accept: "text/plain", ...(opts.returnHtml ? { "x-return-format": "html" } : {}) },
+        signal: ctrl.signal,
+      });
+      if (res.status === 429) throw new Error("读取太频繁，稍等一分钟再试");
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const raw = (await res.text()).trim();
+      if (!raw) throw new Error("读到了空页面");
+      return raw;
+    } catch (e) {
+      if (e instanceof Error && /读取太频繁|读到了空页面/.test(e.message)) throw e;
+      lastErr = e;
+      if (attempt === 1) break;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  const aborted = lastErr instanceof Error && lastErr.name === "AbortError";
+  throw new Error(aborted ? "读取超时（目标站点响应太慢）" : "连不上网页读取服务，检查网络后重试");
+}
+
+/** 把 Jina 的原始返回切成 { pageTitle, markdown 正文 } */
+export function splitJinaPage(raw: string): { pageTitle: string; md: string } {
+  const titleMatch = raw.match(/^Title:\s*(.+)$/m);
+  const contentMatch = raw.match(/^Markdown Content:\s*([\s\S]*)$/m);
+  return { pageTitle: (titleMatch?.[1] ?? "").trim(), md: contentMatch?.[1] ?? raw };
+}
+
 export interface FetchedPage {
   /** 章节标题：优先取正文里的章回标题，读不到就回退页面标题 */
   title: string;
@@ -55,14 +98,20 @@ function isChromeLine(line: string): boolean {
   if (CHROME_LINE_RE.test(t) && t.length <= 60) return true;
   // 标题行里带站点词的（「XX小说网最新章节列表」「全书目录」这类）整行丢弃
   if (wasHeading && t.length <= 40 && /(最新章节|章节目录|目录|小说网|笔趣阁|无弹窗|txt下载|全书阅读|栏目)/.test(t)) return true;
-  // 短行且带 markdown 链接的，基本都是导航（正文段落很少整行是链接）
-  if (t.length <= 20 && /\[[^\]]+\]\([^)]+\)/.test(t)) return true;
+  // 整行基本是链接的（新书发布/开始阅读/上一章下一章这类）：剥掉链接后剩不了几个字
+  if (/\]\([^)]+\)/.test(t)) {
+    const plain = t.replace(/\[[^\]]*\]\([^)]*\)/g, "").replace(/\s/g, "");
+    if (plain.length < 8) return true;
+  }
   return false;
 }
 
 function isContentLine(line: string): boolean {
   const t = line.replace(HEADING_MARK_RE, "").trim();
-  return t.length >= CONTENT_MIN && !CHROME_LINE_RE.test(t);
+  if (t.length < CONTENT_MIN || CHROME_LINE_RE.test(t)) return false;
+  // 剥掉链接后剩不了几个字的行不算正文（正文段落去掉链接也还是一大段话）
+  const plain = t.replace(/\[[^\]]*\]\([^)]*\)/g, "").replace(/\s/g, "");
+  return plain.length >= CONTENT_MIN;
 }
 
 /**
@@ -122,7 +171,7 @@ export function extractChapter(md: string, pageFallbackTitle: string): { title: 
  * 洗页面标题：小说站的 <title> 都是「第一章XX_书名全文免费阅读 – 站点名」这种 SEO 拼的，
  * 去掉站名后缀和推广尾巴，留下能当参考书名称的部分。
  */
-function cleanPageTitle(t: string): string {
+export function cleanPageTitle(t: string): string {
   let x = t.trim();
   // 站名后缀：最后一个 - – — | 分隔符之后的部分（书名里几乎不会再用这些符号）
   const sep = Math.max(x.lastIndexOf(" - "), x.lastIndexOf(" – "), x.lastIndexOf(" — "), x.lastIndexOf(" | "));
@@ -135,36 +184,18 @@ function cleanPageTitle(t: string): string {
 
 export async function fetchPageText(rawUrl: string): Promise<FetchedPage> {
   const url = normalizeUrl(rawUrl);
-  // 抓取偶发失败（上游站点慢/连接重置），带超时重试一次再放弃
-  let lastErr: unknown = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 60_000);
-    try {
-      const res = await fetch(READER_PREFIX + url, { headers: { Accept: "text/plain" }, signal: ctrl.signal });
-      if (res.status === 429) throw new Error("读取太频繁，稍等一分钟再试");
-      if (!res.ok) {
-        throw new Error("读取失败（HTTP " + res.status + "）：这个网址可能需要登录、或页面是纯脚本渲染的，那就只能手动复制正文了");
-      }
-      const raw = (await res.text()).trim();
-      if (!raw) throw new Error("读到了空页面");
-      // Jina 的返回格式：Title: … / URL Source: … / Markdown Content: …
-      const titleMatch = raw.match(/^Title:\s*(.+)$/m);
-      const pageTitle = cleanPageTitle((titleMatch?.[1] ?? "").trim());
-      const contentMatch = raw.match(/^Markdown Content:\s*([\s\S]*)$/m);
-      const md = contentMatch?.[1] ?? raw;
-      const { title, text } = extractChapter(md, pageTitle);
-      if (!text) throw new Error("页面里没提取到正文");
-      return { title, text };
-    } catch (e) {
-      // 带业务信息的错误直接抛，不重试（重试也没用）
-      if (e instanceof Error && /读取失败|读取太频繁|读到了空页面|没提取到正文/.test(e.message)) throw e;
-      lastErr = e;
-      if (attempt === 1) break;
-    } finally {
-      clearTimeout(timer);
-    }
+  let raw: string;
+  try {
+    raw = await jinaFetch(url);
+  } catch (e) {
+    if (e instanceof Error && /读取太频繁/.test(e.message)) throw e;
+    throw new Error(e instanceof Error && /超时/.test(e.message) ? e.message : "读取失败：这个网址可能需要登录、或页面是纯脚本渲染的，那就只能手动复制正文了");
   }
-  const aborted = lastErr instanceof Error && lastErr.name === "AbortError";
-  throw new Error(aborted ? "读取超时（这个站点响应太慢），稍后再试或手动复制" : "连不上网页读取服务，检查网络后重试");
+
+  // Jina 的返回格式：Title: … / URL Source: … / Markdown Content: …
+  const { pageTitle: rawTitle, md } = splitJinaPage(raw);
+  const pageTitle = cleanPageTitle(rawTitle);
+  const { title, text } = extractChapter(md, pageTitle);
+  if (!text) throw new Error("页面里没提取到正文");
+  return { title, text };
 }
