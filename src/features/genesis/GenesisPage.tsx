@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Button, Card, Chip } from "@/components/kit";
-import { ArrowRight, Check, ClipboardList, LayoutList } from "lucide-react";
-import type { GenesisConstraints, GenesisDraft, GenesisRun, LengthClass } from "@/core";
+import { ArrowRight, Check, ClipboardList, LayoutList, RotateCcw } from "lucide-react";
+import type { GenesisConstraints, GenesisDraft, GenesisRun, ID, LengthClass } from "@/core";
 import { lengthProfile } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";
 import { SectionTitle } from "@/components/common/ui";
@@ -202,11 +202,15 @@ export function GenesisPage() {
   }, [loadHistory]);
 
   // 生成中轮询，拿到实时阶段状态与产物
+  const runIdRef = useRef<ID | null>(null);
   const tick = async () => {
     const list = await loadHistory();
     const started = pollRef.current;
     if (!started) return;
-    const live = list.find((r) => new Date(r.createdAt).getTime() >= started.startedAt - 3000);
+    // 续跑时记录不是新创建的（createdAt 早于本次启动），优先按 id 匹配
+    const live =
+      list.find((r) => r.id === runIdRef.current) ??
+      list.find((r) => new Date(r.createdAt).getTime() >= started.startedAt - 3000);
     if (live) setRun(live);
   };
 
@@ -232,8 +236,9 @@ export function GenesisPage() {
     if (Object.keys(next).length) setDurations((prev) => ({ ...prev, ...next }));
   }, [run, durations]);
 
-  async function start() {
-    if (!seed.trim() || busy) return;
+  async function start(resume?: GenesisRun) {
+    if (busy) return;
+    if (!resume && !seed.trim()) return;
     // 授权卡点：AI 建档要花模型额度，未授权不放行（两条线任一条有效即可）
     if (licenseGate && !licenseGate.activated) {
       notify("danger", "AI 建档需要授权", licenseGate.message);
@@ -243,7 +248,8 @@ export function GenesisPage() {
     setElapsed(0);
     setApplyResult(undefined);
     setDurations({});
-    setRun(undefined);
+    setRun(resume ? { ...resume, status: "running" } : undefined);
+    runIdRef.current = resume?.id ?? null;
     timingsRef.current = {};
     pollRef.current = { startedAt: Date.now() };
     const controller = new AbortController();
@@ -252,11 +258,13 @@ export function GenesisPage() {
     try {
       const result = await runGenesis({
         projectId,
-        seed: seed.trim(),
-        constraints,
+        // 续跑用原记录的种子与约束，避免和已生成产物对不上
+        seed: (resume?.seed ?? seed).trim(),
+        constraints: resume?.constraints ?? constraints,
         chaptersPerVolume,
         until,
         signal: controller.signal,
+        resumeRunId: resume?.id,
         // 阶段状态一变就立刻刷新 UI
         onStage: () => {
           void tick();
@@ -265,7 +273,7 @@ export function GenesisPage() {
       setRun(result);
       await loadHistory();
       if (result.status === "failed") {
-        notify("danger", "生成中断", result.error ?? "有阶段失败了，可以重试，也可以先应用已完成的部分");
+        notify("danger", "生成中断", result.error ?? "有阶段失败了，可以从失败处继续，也可以先应用已完成的部分");
       } else {
         notify("success", "故事圣经生成完成", "检查产物，勾选后写入项目");
       }
@@ -369,6 +377,22 @@ export function GenesisPage() {
 
         {stageList.length > 0 && (
           <StageStepper stages={stageList} durations={durations} busy={busy} elapsed={elapsed} />
+        )}
+
+        {/* 失败后可以续跑：已完成阶段的产物直接复用，只补失败的部分 */}
+        {!busy && run?.status === "failed" && (
+          <Card className="p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="primary" onPress={() => void start(run)}>
+                <RotateCcw className="size-4" />
+                从失败处继续
+              </Button>
+              <span className="text-[11px] opacity-55">
+                已完成的阶段直接复用、不重新调用模型，只补失败的阶段和缺的章节卷；
+                「生成到哪一步」决定这次补到哪里。
+              </span>
+            </div>
+          </Card>
         )}
 
         {run && hasProduct && (

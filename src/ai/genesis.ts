@@ -8,7 +8,7 @@ import type { ContinuityRule } from "@/core";
 import { createCharacter, listCharacters, updateCharacter, upsertRelationship } from "@/db/repo/cast";
 import { upsertGlossary, upsertRule, upsertWorldEntry } from "@/db/repo/world";
 import { upsertThread } from "@/db/repo/story";
-import { updateGenesisRun, createGenesisRun } from "@/db/repo/genesis";
+import { updateGenesisRun, createGenesisRun, getGenesisRun } from "@/db/repo/genesis";
 import { updateProject } from "@/db/repo/projects";
 import { countWords, textToHtml } from "@/utils/text";
 import { runJson, systemWithProject } from "./runner";
@@ -29,44 +29,69 @@ export interface GenesisOptions {
   chaptersPerVolume?: number;
   signal?: AbortSignal;
   onStage?: (stage: GenesisStage) => void;
+  /** 续跑：复用这条记录里已完成阶段的产物，只补失败的/缺的部分 */
+  resumeRunId?: ID;
 }
+
+/** 阶段固定顺序 */
+const KINDS: GenesisStage["kind"][] = ["premise", "characters", "world", "structure", "outline"];
 
 /**
  * 分阶段构建故事圣经，每阶段成功就落库到 GenesisRun.stages，中断后可继续。
  * 阶段之间把上一阶段的结论喂给下一阶段，保证内部一致。
+ * 传 resumeRunId 时变成「从失败处继续」：done 的阶段直接复用产物不重新调用模型，
+ * 章节大纲里已经生成够数的卷也原样保留，只补缺的卷。
  */
 export async function runGenesis(opts: GenesisOptions): Promise<GenesisRun> {
-  const run = await createGenesisRun(opts.projectId, opts.seed, opts.constraints);
-  await updateGenesisRun(run.id, { status: "running", seedKind: opts.seedKind ?? "idea" });
+  let run: GenesisRun;
+  let stages: GenesisStage[];
 
-  const kinds: GenesisStage["kind"][] = ["premise", "characters", "world", "structure", "outline"];
-  const stopAt = opts.until ? kinds.indexOf(opts.until) : kinds.length - 1;
-  const stages: GenesisStage[] = kinds.map((k) => ({ kind: k, status: "pending" }));
+  if (opts.resumeRunId) {
+    const existing = await getGenesisRun(opts.resumeRunId);
+    if (!existing) throw new Error("找不到要继续的生成记录，可能已被删除");
+    run = existing;
+    stages = (existing.stages ?? []).map((s) => ({ ...s }));
+    for (const kind of KINDS) if (!stages.some((s) => s.kind === kind)) stages.push({ kind, status: "pending" });
+    stages.sort((a, b) => KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind));
+    await updateGenesisRun(run.id, { status: "running", error: undefined });
+  } else {
+    run = await createGenesisRun(opts.projectId, opts.seed, opts.constraints);
+    await updateGenesisRun(run.id, { status: "running", seedKind: opts.seedKind ?? "idea" });
+    stages = KINDS.map((kind) => ({ kind, status: "pending" }));
+  }
+
+  const stopAt = opts.until ? KINDS.indexOf(opts.until) : KINDS.length - 1;
 
   const persist = async () => {
     await updateGenesisRun(run.id, { stages });
     const stage = stages.find((s) => s.status === "running") ?? stages.find((s) => s.status === "failed");
     if (stage) opts.onStage?.(stage);
   };
+  const failRun = async (stage: GenesisStage, error: string) => {
+    stage.status = "failed";
+    stage.error = error;
+    await updateGenesisRun(run.id, { stages, status: "failed", error });
+    return { ...run, stages, status: "failed" as const, error };
+  };
 
   // ---------- 阶段 1：核心设定（书名/高概念/人物/世界观/规则） ----------
-  stages[0].status = "running";
-  await persist();
-  const premise = await generateBible(opts);
-  if (!premise.ok) {
-    stages[0].status = "failed";
-    stages[0].error = premise.error;
-    await updateGenesisRun(run.id, { stages, status: "failed", error: premise.error });
-    return { ...run, stages, status: "failed", error: premise.error };
+  const premiseStage = stages[0];
+  let bible = premiseStage.status === "done" ? (premiseStage.data as BibleData | undefined) : undefined;
+  if (!bible) {
+    premiseStage.status = "running";
+    await persist();
+    const premise = await generateBible(opts);
+    if (!premise.ok) return failRun(premiseStage, premise.error ?? "生成失败");
+    premiseStage.status = "done";
+    premiseStage.data = premise.bible;
+    premiseStage.model = premise.model;
+    premiseStage.tokens = premise.tokens;
+    bible = premise.bible;
   }
-  stages[0].status = "done";
-  stages[0].data = premise.bible;
-  stages[0].model = premise.model;
-  stages[0].tokens = premise.tokens;
   stages[1].status = "done";
-  stages[1].data = premise.bible?.characters ?? [];
+  stages[1].data = bible?.characters ?? [];
   stages[2].status = "done";
-  stages[2].data = { world: premise.bible?.world ?? [], rules: premise.bible?.rules ?? [] };
+  stages[2].data = { world: bible?.world ?? [], rules: bible?.rules ?? [] };
   await persist();
 
   if (stopAt < 3) {
@@ -75,39 +100,42 @@ export async function runGenesis(opts: GenesisOptions): Promise<GenesisRun> {
   }
 
   // ---------- 阶段 4：分卷结构 ----------
-  stages[3].status = "running";
-  await persist();
-  const structure = await generateStructure(opts, premise.bible, stages);
-  if (!structure.ok) {
-    stages[3].status = "failed";
-    stages[3].error = structure.error;
-    await updateGenesisRun(run.id, { stages, status: "failed", error: structure.error });
-    return { ...run, stages, status: "failed", error: structure.error };
+  const structureStage = stages[3];
+  let arcs = structureStage.status === "done" && Array.isArray(structureStage.data) ? (structureStage.data as Arc[]) : [];
+  if (arcs.length === 0) {
+    structureStage.status = "running";
+    await persist();
+    const structure = await generateStructure(opts, bible, stages);
+    if (!structure.ok) return failRun(structureStage, structure.error ?? "生成失败");
+    structureStage.status = "done";
+    structureStage.data = structure.arcs;
+    structureStage.model = structure.model;
+    arcs = structure.arcs;
+    await persist();
   }
-  stages[3].status = "done";
-  stages[3].data = structure.arcs;
-  stages[3].model = structure.model;
-  await persist();
 
   // ---------- 阶段 5：章节大纲 ----------
   if (stopAt >= 4) {
-    stages[4].status = "running";
+    const outlineStage = stages[4];
+    // 已有章节（全量或上次部分成功留下的）都算数，按卷补缺
+    const previous: Chapter[] = Array.isArray(outlineStage.data) ? (outlineStage.data as Chapter[]) : [];
+    outlineStage.status = "running";
+    outlineStage.error = undefined;
     await persist();
-    const outline = await generateChapterOutline(opts, premise.bible, structure.arcs, stages);
-    if (outline.ok) {
-      stages[4].status = "done";
-      stages[4].data = outline.chapters;
-      stages[4].model = outline.model;
-    } else {
-      stages[4].status = "failed";
-      stages[4].error = outline.error;
-    }
+    const outline = await generateChapterOutline(opts, bible, arcs, previous);
+    // 部分成功也落库：失败卷的错误写在阶段上，「从失败处继续」只补缺的卷
+    outlineStage.status = outline.ok ? "done" : "failed";
+    outlineStage.data = outline.chapters;
+    if (outline.model) outlineStage.model = outline.model;
+    outlineStage.error = outline.error;
     await persist();
   }
 
   const anyFailed = stages.some((s) => s.status === "failed");
-  await updateGenesisRun(run.id, { stages, status: anyFailed ? "failed" : "done" });
-  return { ...run, stages, status: anyFailed ? "failed" : "done" };
+  const status = anyFailed ? ("failed" as const) : ("done" as const);
+  const error = anyFailed ? stages.find((s) => s.status === "failed")?.error : undefined;
+  await updateGenesisRun(run.id, { stages, status, error });
+  return { ...run, stages, status, error };
 }
 
 export interface BibleData {
@@ -147,21 +175,23 @@ async function generateBible(
     craftFor(opts.constraints.genres),
   ].filter(Boolean).join(NL);
 
+  const userPrompt = [
+    "### 创作种子",
+    opts.seed,
+    "",
+    "### 硬性约束",
+    constraints,
+    "",
+    "### 任务",
+    "基于这个种子，设计完整的故事内核：书名、高概念、主要人物（3~7 位，含反派，每个人都有互相冲突的欲望）、世界观条目（6~12 条，其中力量体系必须有明确规则与代价）、世界硬规则（3~6 条）、分卷结构、以及一段 300 字左右的开篇正文。",
+    "人物的 name 请使用符合题材的中文姓名；世界条目 body 要写具体内容而不是概述。",
+  ].join(NL);
+
   const res = await runJson({
     taskKind: "genesis",
     projectId: opts.projectId,
     system,
-    user: [
-      "### 创作种子",
-      opts.seed,
-      "",
-      "### 硬性约束",
-      constraints,
-      "",
-      "### 任务",
-      "基于这个种子，设计完整的故事内核：书名、高概念、主要人物（3~7 位，含反派，每个人都有互相冲突的欲望）、世界观条目（6~12 条，其中力量体系必须有明确规则与代价）、世界硬规则（3~6 条）、分卷结构、以及一段 300 字左右的开篇正文。",
-      "人物的 name 请使用符合题材的中文姓名；世界条目 body 要写具体内容而不是概述。",
-    ].join(NL),
+    user: userPrompt,
     jsonSchemaHint: jsonInstruction(GENESIS_SCHEMA),
     context: {
       projectId: opts.projectId,
@@ -172,8 +202,7 @@ async function generateBible(
   });
 
   if (!res.ok || !res.parsed?.ok) return { ok: false, error: res.error ?? "解析失败", model: res.model, tokens: res.usage.total };
-  const d = res.parsed.data as Record<string, unknown>;
-  const bible: BibleData = {
+  const bibleFrom = (d: Record<string, unknown>): BibleData => ({
     title: pickStr(d, "title") || project?.title || "未命名",
     subtitle: pickStr(d, "subtitle", "副标题"),
     logline: pickStr(d, "logline"),
@@ -185,8 +214,56 @@ async function generateBible(
     rules: asArrayAny<Record<string, unknown>>(d, "rules"),
     structure: asArrayAny<Record<string, unknown>>(d, "structure"),
     openingScene: pickStr(d, "openingScene", "opening"),
-  };
-  return { ok: true, bible, model: res.model, tokens: res.usage.total };
+  });
+  let bible = bibleFrom(res.parsed.data as Record<string, unknown>);
+  let model = res.model;
+  let tokens = res.usage.total;
+
+  /*
+   * 数量契约：核心设定要求人物 3~7 位、世界观 6~12 条 —— 这是产品承诺，
+   * 但推理模型把预算花在思考上时输出会被截短，括号补全后被静默接受。
+   * 出量不足就带着差距说明重试一次，两版取「人物+世界观」更丰富的那份；
+   * 重试后人物仍 < 3 位（无法构成冲突）则判失败，交给「从失败处继续」。
+   */
+  const short = (b: BibleData) => b.characters.length < 3 || b.world.length < 6;
+  if (short(bible)) {
+    const retry = await runJson({
+      taskKind: "genesis",
+      projectId: opts.projectId,
+      system,
+      user: [
+        userPrompt,
+        "",
+        "### 上一次输出的不足",
+        "人物只有 " + bible.characters.length + " 位（要求 3~7 位），世界观只有 " + bible.world.length + " 条（要求 6~12 条）。",
+        "请重新输出完整 JSON：在原有创意上补足数量，书名与核心创意保持一致；人物之间必须能构成冲突，世界观条目要具体可写。",
+      ].join(NL),
+      jsonSchemaHint: jsonInstruction(GENESIS_SCHEMA),
+      context: {
+        projectId: opts.projectId,
+        sections: ["profile"],
+        query: opts.seed,
+      },
+      signal: opts.signal,
+    });
+    if (retry.ok && retry.parsed?.ok) {
+      const alt = bibleFrom(retry.parsed.data as Record<string, unknown>);
+      if (alt.characters.length * 10 + alt.world.length > bible.characters.length * 10 + bible.world.length) {
+        bible = alt;
+        model = retry.model;
+        tokens = retry.usage.total;
+      }
+    }
+  }
+  if (bible.characters.length < 3) {
+    return {
+      ok: false,
+      error: "核心设定出量不足：人物只有 " + bible.characters.length + " 位（至少 3 位才能构成冲突）。可点「从失败处继续」重试，或换个非推理模型。",
+      model,
+      tokens,
+    };
+  }
+  return { ok: true, bible, model, tokens };
 }
 
 async function generateStructure(
@@ -250,7 +327,7 @@ async function generateChapterOutline(
   opts: GenesisOptions,
   bible: BibleData | undefined,
   arcs: Arc[],
-  stages: GenesisStage[],
+  previous: Chapter[] = [],
 ): Promise<{ ok: boolean; chapters: Chapter[]; error?: string; model: string }> {
   const system = await systemWithProject(
     opts.projectId,
@@ -258,11 +335,24 @@ async function generateChapterOutline(
   );
   const perVolume = opts.chaptersPerVolume ?? 12;
   const now = new Date().toISOString();
-  const created: Chapter[] = [];
+  /*
+   * 按卷生成、按卷保留：某一卷的模型调用失败不再拖垮整本 ——
+   * 已完成的卷留在产物里，失败的卷记下原因，「从失败处继续」时跳过够数的卷只补缺的。
+   */
+  const created: Chapter[] = [...previous];
   let model = "";
-  let order = 0;
+  const errors: string[] = [];
+  let failedVolumes = 0;
 
   for (const arc of arcs) {
+    const have = previous.filter((c) => c.arcId === arc.id).length;
+    if (have >= perVolume) continue;
+    // 这一卷要（重）生成：把旧的残卷拿掉，章号从当前总章数接着排
+    const kept = created.filter((c) => c.arcId !== arc.id);
+    created.length = 0;
+    created.push(...kept);
+    let order = created.length;
+
     const res = await runJson({
       taskKind: "outline",
       projectId: opts.projectId,
@@ -289,7 +379,10 @@ async function generateChapterOutline(
       signal: opts.signal,
     });
     if (!res.ok || !res.parsed?.ok) {
-      return { ok: false, chapters: created, error: res.error ?? "解析失败", model: res.model };
+      if (opts.signal?.aborted) return { ok: false, chapters: created, error: res.error ?? "已取消", model: res.model || model };
+      failedVolumes += 1;
+      errors.push("「" + arc.title + "」" + (res.error ?? "解析失败"));
+      continue;
     }
     model = res.model;
     const d = res.parsed.data as Record<string, unknown>;
@@ -299,7 +392,8 @@ async function generateChapterOutline(
       ? asArray<Record<string, unknown>>(arcList[0].chapters)
       : asArray<Record<string, unknown>>(d.chapters);
 
-    for (const c of rawChapters.slice(0, perVolume)) {
+    const batch = rawChapters.slice(0, perVolume);
+    for (const c of batch) {
       created.push({
         id: "pending_ch_" + order,
         projectId: opts.projectId,
@@ -323,9 +417,28 @@ async function generateChapterOutline(
       });
       order += 1;
     }
+    // 出量明显不足（推理模型把预算花在思考上、输出被截短）也算这卷没完成：
+    // 已经出的章节先留着，「从失败处继续」会把这一卷整卷重出
+    if (batch.length < Math.ceil(perVolume * 0.9)) {
+      failedVolumes += 1;
+      errors.push("「" + arc.title + "」只出齐 " + batch.length + "/" + perVolume + " 章（模型输出被截短）");
+    }
   }
-  void stages;
-  return { ok: true, chapters: created, model };
+
+  if (created.length === 0) {
+    return { ok: false, chapters: [], error: errors.join("；") || "一章都没生成", model };
+  }
+  // 重排章号：补卷/换卷后保证全局连续且按卷序排列
+  created.forEach((c, i) => {
+    c.order = i;
+    c.id = "pending_ch_" + i;
+  });
+  return {
+    ok: failedVolumes === 0,
+    chapters: created,
+    error: failedVolumes > 0 ? failedVolumes + " 卷没生成成功：" + errors.join("；") : undefined,
+    model,
+  };
 }
 
 function lengthLabel(k: GenesisConstraints["lengthClass"]): string {
