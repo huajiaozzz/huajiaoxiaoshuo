@@ -9,6 +9,7 @@ import type { ID, MemoryEffect, MemoryFact, MemoryKind, ProviderConfig, Semantic
 import { MEMORY_CONFLICT_LABEL, MEMORY_KIND_LABEL, MEMORY_SOURCE_LABEL, resolveSemanticRecall, resolveViking, resolveHindsight, resolveMindMem, resolveRecallEngine, recallEnginePatch, RECALL_ENGINE_LABEL, VIKING_CLOUD_ENDPOINT, VIKING_SELF_HOSTED_ENDPOINT, MINDMEM_CLOUD_ENDPOINT, MINDMEM_SELF_HOSTED_ENDPOINT } from "@/core";
 import { useAppStore } from "@/app/store";
 import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "@/db/database";
 import {
   addMemory, clearMemory, deleteMemory, listMemory, memoryEffectStats, previewMemoryConflicts,
   previewNearDuplicates, resolveMemoryConflict, scanMemoryConflicts, toggleMemoryPaused,
@@ -71,6 +72,12 @@ export function MemoryPanel() {
     () => (projectId ? listMemory({ projectId, includePaused: true }) : listMemory({ includePaused: true })),
     [projectId],
     undefined as MemoryFact[] | undefined,
+  );
+  // 设定库规模（世界观条目数）：总览用它判断「该不该开召回引擎」
+  const worldCountLive = useLiveQuery(
+    () => (projectId ? db.worldEntries.where("projectId").equals(projectId).count() : 0),
+    [projectId],
+    undefined as number | undefined,
   );
 
   // 冲突扫描与效果统计都走 useLiveQuery：裁决完立刻从界面上消失，不需要手动刷新
@@ -238,9 +245,13 @@ export function MemoryPanel() {
 
   const openConflicts = conflicts ?? [];
 
+  // 总览里给出「当前引擎 + 规模」的状态行：什么时候该开召回引擎，用数字说话
+  const engine = resolveRecallEngine(settings);
+  const worldCount = worldCountLive ?? 0;
+
   return (
     <div className="space-y-5">
-      <MemorySystemsGuide />
+      <MemorySystemsGuide engineLabel={RECALL_ENGINE_LABEL[engine]} memoryCount={memories.length} worldCount={worldCount} />
       {openConflicts.length > 0 && (
         <section className="rounded-xl border border-amber-500/40 bg-amber-500/[0.06] p-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -666,7 +677,15 @@ async function copyText(
  * 本地记忆开箱即用零成本；召回引擎四选一（或关闭），默认关闭，
  * 没装、没开、连不上都会静默退回原链路，写作不受影响。
  */
-function MemorySystemsGuide() {
+function MemorySystemsGuide({
+  engineLabel,
+  memoryCount,
+  worldCount,
+}: {
+  engineLabel: string;
+  memoryCount: number;
+  worldCount: number;
+}) {
   const items = [
     {
       name: "本地写作记忆",
@@ -708,6 +727,14 @@ function MemorySystemsGuide() {
       <p className="mt-1 text-xs leading-relaxed opacity-65">
         默认只用「本地写作记忆」就够写完一本书。记忆多到排序不灵时，再去下面的「记忆召回引擎」里挑一个
         （一次只选一个，别同时开）；换引擎不会丢配置，随时切回来。
+      </p>
+      <p className="mt-1.5 rounded-lg bg-black/[0.04] px-2.5 py-1.5 text-[11px] leading-relaxed opacity-75 dark:bg-white/[0.06]">
+        当前：记忆召回引擎 = <span className="font-medium">{engineLabel}</span>；本项目记忆 {memoryCount} 条、世界观 {worldCount} 条。
+        {engineLabel === "关闭" && (worldCount >= 30 || memoryCount >= 24)
+          ? "设定/记忆规模已经不小，建议从下面挑一个召回引擎，让 AI 只带最相关的设定。"
+          : engineLabel === "关闭"
+            ? "这个规模全量带得动，暂不用开召回引擎；世界观上百条或记忆几十条后再开。"
+            : "召回引擎已启用：记忆与相关设定会按「当前在写什么」挑选。"}
       </p>
       <div className="mt-2.5 space-y-1.5">
         {items.map((it) => (
