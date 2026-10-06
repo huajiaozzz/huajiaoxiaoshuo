@@ -4,7 +4,7 @@ import { shouldUseProxy } from './proxy';
 import { ProviderError, type ChatRequest, type ChatResult } from './types';
 
 /** 上下文超长时给用户的可读提示 */
-function isContextLengthError(msg: string): boolean {
+export function isContextLengthError(msg: string): boolean {
   return /context length|maximum context|too many tokens|context_length_exceeded|reduce the length/i.test(msg);
 }
 

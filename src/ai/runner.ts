@@ -3,7 +3,7 @@ import { estimateCost, loadSettings, resolveModel } from "@/db/repo/settings";
 import { logGeneration } from "@/db/repo/ai";
 import { db } from "@/db/database";
 import { newId } from "@/utils/id";
-import { chat, chatStream, type CallOptions } from "./llm";
+import { chat, chatStream, isContextLengthError, type CallOptions } from "./llm";
 import { buildContext, type BuildContextOptions } from "./context";
 import { parseJson, type ParseResult } from "./json";
 import { licenseGate } from '@/license/status';
@@ -95,7 +95,7 @@ export async function runText(opts: RunTextOptions): Promise<TextRunResult> {
     contextTokens = built.tokens;
   }
 
-  const messages = buildMessages({
+  let messages = buildMessages({
     system: opts.system,
     user: opts.user,
     contextText,
@@ -114,6 +114,10 @@ export async function runText(opts: RunTextOptions): Promise<TextRunResult> {
   // 命中这种情况就在同一模型上加大预算重试，而不是把空结果当成成功返回。
   let params = target.params;
   let starvedRetries = 0;
+  // 纯文本输出被 max_tokens 截断时，从断点自动续写一次（JSON 交给 runJson 修复）
+  let lengthContinues = 0;
+  // 上下文溢出时把预算减半重组重试一次（不消耗模型降级轮次）
+  let overflowRetried = false;
 
   for (let round = 0; round < maxRounds; round++) {
     const attemptStarted = performance.now();
@@ -148,9 +152,68 @@ export async function runText(opts: RunTextOptions): Promise<TextRunResult> {
         continue;
       }
 
+      // 输出被 max_tokens 截断（finish_reason=length）：纯文本任务从断点自动续写一次。
+      // JSON 任务不在这里续 —— runJson 的修复轮会带「压缩内容规模」指令重新输出，那边处理更稳。
+      let final = res;
+      if (res.finishReason === "length" && !opts.json && lengthContinues < 1 && !opts.signal?.aborted) {
+        lengthContinues += 1;
+        const bumped = Math.min(32000, Math.max(Math.round(params.maxTokens * 1.5), params.maxTokens + 2000));
+        attempts.push({
+          model,
+          ok: false,
+          error: `输出被截断（${res.usage.completion} tokens），提升到 ${bumped} 自动续写`,
+          ms: performance.now() - attemptStarted,
+        });
+        if (opts.recordUsage !== false) {
+          await record(opts, provider.id, model, params, messages, contextSources, res.usage, performance.now() - started, false, "输出被截断，自动续写", injected);
+        }
+        params = { ...params, maxTokens: bumped };
+        const continueMessages: ChatMessage[] = [
+          ...messages,
+          { id: newId("msg"), role: "assistant", content: res.text, createdAt: new Date().toISOString() },
+          {
+            id: newId("msg"),
+            role: "user",
+            content: "继续。从中断处无缝接着往下写，直接续正文，不要重复已写过的内容，不要任何说明或道歉。",
+            createdAt: new Date().toISOString(),
+          },
+        ];
+        const continueReq: ChatRequest = {
+          provider,
+          model,
+          messages: continueMessages,
+          params,
+          stream,
+          signal: opts.signal,
+          onDelta: opts.onDelta,
+        };
+        // 续写这一跳失败时保住第一段：宁短勿丢
+        try {
+          const res2 = stream ? await chatStream(continueReq, callOpts()) : await chat(continueReq, callOpts());
+          if (res2.text.trim()) {
+            final = {
+              ...res2,
+              text: res.text + res2.text,
+              usage: {
+                prompt: res.usage.prompt + res2.usage.prompt,
+                completion: res.usage.completion + res2.usage.completion,
+                total: res.usage.total + res2.usage.total,
+              },
+            };
+          }
+        } catch (contErr) {
+          attempts.push({
+            model,
+            ok: false,
+            error: "自动续写失败，返回已生成的部分：" + (contErr instanceof Error ? contErr.message : String(contErr)),
+            ms: 0,
+          });
+        }
+      }
+
       attempts.push({ model, ok: true, ms: performance.now() - attemptStarted });
       if (opts.recordUsage !== false) {
-        await record(opts, provider.id, model, params, messages, contextSources, res.usage, performance.now() - started, true, undefined, injected);
+        await record(opts, provider.id, model, params, messages, contextSources, final.usage, performance.now() - started, true, undefined, injected);
       }
       if (starved) {
         // 重试后仍然为空：明确报错，不要让用户面对空白
@@ -164,8 +227,8 @@ export async function runText(opts: RunTextOptions): Promise<TextRunResult> {
       }
       return {
         ok: true,
-        text: res.text,
-        usage: res.usage,
+        text: final.text,
+        usage: final.usage,
         model,
         providerId: provider.id,
         ms: performance.now() - started,
@@ -178,6 +241,28 @@ export async function runText(opts: RunTextOptions): Promise<TextRunResult> {
       attempts.push({ model, ok: false, error: err.message, ms: performance.now() - attemptStarted });
       lastError = e;
       if (e instanceof ProviderError && (e.kind === "aborted" || e.kind === "auth" || e.kind === "no-provider")) break;
+
+      // 上下文溢出自愈：把上下文预算砍半重新组装，同一模型再试一次（不消耗降级轮次）。
+      // 以前只会降级到备用模型 —— 备用往往同样溢出，等于白扔一次。
+      if (!overflowRetried && opts.context && contextTokens > 0 && isContextLengthError(err.message)) {
+        overflowRetried = true;
+        const half = Math.max(4000, Math.floor((opts.context.budget ?? settings.contextBudget) / 2));
+        const rebuilt = await buildContext({ ...opts.context, budget: half });
+        contextText = rebuilt.text;
+        contextSources = rebuilt.sources;
+        contextTokens = rebuilt.tokens;
+        messages = buildMessages({
+          system: opts.system,
+          user: opts.user,
+          contextText,
+          history: opts.history,
+          json: opts.json,
+          jsonSchemaHint: opts.jsonSchemaHint,
+        });
+        attempts.push({ model, ok: false, error: `上下文溢出，预算减半到 ~${half} tokens 后重试`, ms: 0 });
+        round -= 1;
+        continue;
+      }
 
       const next = await nextFallback(opts.taskKind, model, round);
       if (!next) break;
