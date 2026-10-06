@@ -34,9 +34,30 @@ export const CHANGE_KIND_COLOR: Record<ChangeKind, "success" | "accent" | "warni
   fixed: "warning",
 };
 
-export const APP_VERSION = "0.14.1";
+export const APP_VERSION = "0.14.2";
 
 export const CHANGELOG: Release[] = [
+  {
+    version: "0.14.2",
+    date: "2026-10-06",
+    headline: "可靠性修复：AI 生成更扛造，失败可从断点续跑",
+    changes: [
+      {
+        kind: "fixed",
+        items: [
+          "**一句话成书失败后可以「从失败处继续」**：已完成的阶段（核心设定/人物/世界观/分卷）直接复用、不再重新花钱跑；章节大纲按卷保留 —— 某一卷失败或被模型截短，不再拖垮整本，续跑只补缺的卷。",
+          "**纯文本生成被长度截断时自动续写**：续写/扩写/润色/对话触到输出上限时，从断点无缝接着写一次，不再写到一半戛然而止。",
+          "**上下文超长自动减半重试**：设定上下文把模型撑爆时，自动把预算砍半重新组装再试，而不是直接报错。",
+        ],
+      },
+      {
+        kind: "added",
+        items: [
+          "**写作记忆页新增状态行**：显示当前召回引擎与本项目记忆/世界观规模，什么时候该开召回引擎一目了然。",
+        ],
+      },
+    ],
+  },
   {
     version: "0.14.1",
     date: "2026-10-06",
