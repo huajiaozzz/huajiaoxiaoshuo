@@ -34,9 +34,23 @@ export const CHANGE_KIND_COLOR: Record<ChangeKind, "success" | "accent" | "warni
   fixed: "warning",
 };
 
-export const APP_VERSION = "0.15.0";
+export const APP_VERSION = "0.16.0";
 
 export const CHANGELOG: Release[] = [
+  {
+    version: "0.16.0",
+    date: "2026-10-08",
+    headline: "桌面版数据改存 SQLite，网页版不受影响",
+    changes: [
+      {
+        kind: "improved",
+        items: [
+          "**桌面版的作品数据改存到本机 SQLite 文件**（浏览器版仍存在浏览器本地库里，两边打开的是同一套界面、同一份逻辑）。SQLite 文件在系统里更稳、更容易自己备份，也为后面做「多窗口」和「真·本地模型」铺了路。",
+          "**升级不受影响**：老数据照旧能读，不需要任何手工迁移动作。",
+        ],
+      },
+    ],
+  },
   {
     version: "0.15.0",
     date: "2026-10-08",

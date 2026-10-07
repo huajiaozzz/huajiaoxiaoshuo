@@ -1,6 +1,6 @@
 [package]
 name = "huajiao-writer"
-version = "0.15.0"
+version = "0.16.0"
 edition = "2021"
 
 [build-dependencies]
@@ -8,6 +8,9 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+# 桌面端的数据存储通道：前端经此访问 SQLite（见 src/db/adapter/sqlite.ts）
+# features = ["sqlite"] 是必须的，否则插件不带 sqlite 驱动，load() 会报驱动不可用
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

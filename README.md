@@ -6,6 +6,7 @@
 - 前端：React 19 · TypeScript · Tailwind CSS v4 · Vite 8
 - UI：Animate UI（弹窗/气泡/按钮/数字等动画原语，源码在 `src/components/animate-ui`）+ 自研控件 `src/components/kit`，动效引擎 motion
 - 存储：浏览器 IndexedDB（Dexie），**数据不出本机**；可导出 JSON 全量备份
+  - 桌面版自动改用本机 **SQLite**（`src/db/adapter/*`），业务代码同一套；表结构从 `schema.ts` 的 `DB_STORES` 单一来源推导
 - 模型：DeepSeek / OpenAI / Kimi / 智谱 / 通义 / 硅基流动 / OpenRouter / Ollama / LM Studio / 任意 OpenAI 兼容服务
 - 桌面端：Tauri 2（Mac / Windows），与网页版同一份构建产物
 
@@ -84,6 +85,8 @@ docs/          GOTCHAS（陷阱与约定）
 | `npm run verify:zip` | ZIP 写入器校验（对照 Python zipfile） |
 | `npm run verify:ebook` | EPUB / DOCX 格式校验 |
 | `npm run verify:conflict` | 冲突判定 + 审稿报告生成（纯函数 49 项 + DOCX 规范校验） |
+| `npm run verify:units` | 单元测试：锚点定位 / 文风分析 / 记忆冲突（42 项） |
+| `node scripts/verify-sqlite-adapter.mjs` | 桌面端 SQLite 适配层（53 项，假 driver） |
 | `node scripts/run-all-verify.mjs` | 批量跑所有回归并汇总绿 / 跳过 / 红 |
 | `npm run mock-llm` | 启动本地假模型（无需 API Key） |
 | `npm run e2e:ai` | AI 链路端到端 |

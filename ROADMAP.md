@@ -121,8 +121,10 @@ node scripts/shot.mjs <url> <png>  # 任意页面截图 + 控制台错误收集
   - [ ] 其余 `src/utils`（format / bookSource / webFetch）与 `src/ai` 纯函数待补
 
 ### 桌面端（后期）
-- [ ] Tauri 2 打包；把 Dexie 存储换成 SQLite/文件系统适配层（`src/db/repo/*` 是唯一改动面）
+- [x] Tauri 2 打包；Dexie → SQLite 适配层：桌面端数据存储已切到 SQLite（`src/db/adapter/*`），**业务代码一行未改** —— 靠"同一套方法形状 + 唯一一处 cast"实现双后端。Web 端继续走 IndexedDB。表结构从 `DB_STORES` **推导**出 SQL DDL，不手写第二份。
+  - 已知边界：`verify-sqlite-adapter.mjs` 用假 driver 验证适配层生成的 SQL 与数据往返（53 项），**未在真桌面端跑过端到端**（需要完整 `tauri build` + 人工操作）；首次桌面端联调时优先确认连接建立、建表、备份/恢复这三条路径。
 - [ ] 本地模型内置引导、系统级快捷键、多窗口
+- [ ] 桌面端把 `navigator.storage.estimate()`（`databaseStats` 的用量估算）换成 SQLite 文件大小
 
 ## 四、关键约定与陷阱
 

@@ -680,3 +680,92 @@ editor.commands.setContent(html, { emitUpdate: false })  // 仍然会触发 onUp
 
 同理，Markdown 里的 `*` `_` `[` `]` `|` 必须转义 —— 批注正文里出现 `**星号**`
 会被渲染成真的加粗，对方看到的内容和作者写的不一样（`verify-conflict-ui` 有这条断言）。
+
+## 换存储后端：让 23 个文件一行不改，代价是类型系统闭嘴（v0.16.0）
+
+桌面端数据要从 Dexie(IndexedDB) 换成 SQLite。两个前提先摆出来：
+
+1. **ROADMAP 写的"`src/db/repo/*` 是唯一改动面"是错的**。实测 `src/ai` 有 11 个文件、
+   `src/features` 有 4 个直接用 `db.*`（约 85 处），`repo/` 只是**主要**入口而非唯一入口。
+   这个前提如果当真，改造会在某个 AI 流程里静默崩掉。
+2. **同一份构建产物要同时跑 Web 和桌面**（README 的目标），所以不能在构建期二选一。
+
+于是选了「**接口形状对齐 + 唯一一处 cast**」：SQLite 实现提供与 Dexie **同名同形状**的
+方法，`database.ts` 里一次 `as Database & HuaJiaoDB`，23 个文件完全不动。
+
+**代价必须写清楚**：这条路径**不再有类型检查**。适配层少实现一个方法、
+参数对不上、返回值不对，`tsc` 一句话都不会说 ——
+因为从类型系统看它就是 Dexie。
+
+**所以配套的不是文档而是断言**：`scripts/verify-sqlite-adapter.mjs` 用假 driver
+把适配层每个方法都走一遍。这不是"额外加个测试"，而是那个 cast 的**必要补偿**。
+
+### 换后端时踩的三个坑
+
+**① 非索引字段的 where 会静默返回空**
+
+Dexie 里 `where('title')` 而 title 不是索引 → 直接抛错。
+SQLite 侧如果没有同名索引列，SQL 照样能执行，只是**永远匹配不到** →
+调用方看到"这个项目一条数据都没有"，像数据丢了。
+修法：`where()` 里先校验字段确实是声明的索引，否则报错并**列出可用索引**。
+（我自己的测试第一版就写错了字段，症状看起来像"覆盖没生效"，其实是测试选错字段。）
+
+**② `modify` 把 `data` 列漏掉了**
+
+`data` 存整行 JSON，索引列只是给它做检索的**副本**。
+第一版 modify 重建 INSERT 时把 `data` 过滤掉了（当时想"data 没变不用重写"），
+于是改动只落到索引列上：**用索引查得到"已改过"的行，读出来的对象还是旧值**。
+类型检查完全看不出来，是 put→modify→get 的往返断言抓住的。
+
+**③ 假 driver 假设主键在第一列**
+
+`toRow` 把 `data` 排在第一位，所以 `vals[0]` 不是主键。
+假 driver 拿它当主键的后果是：每次 put 都换一个"主键"（那串 JSON），
+**"覆盖"变成了"新增"**，两次 put 之后表里躺了两行。
+修法：主键列从 SQL 里的 `ON CONFLICT("pk")` 读 —— 语句自己声明了冲突目标，
+不该由 driver 去猜列序。
+
+### 三条走不通的后端切换写法
+
+都试过，写在 `database.ts` 的注释里以免重走：
+
+1. **Proxy 懒加载** —— `exporters.ts` 会**遍历 `db.tables`**（备份/恢复要清空所有表），
+   代理交出的是函数而不是数组，直接崩；而且 `db.chapters` 是**属性**不是方法，
+   代理返回 Promise 会让 `db.chapters.where(...)` 变成对 Promise 取属性。
+2. **`Object.assign(db, backend)`** —— 表访问器在**原型**上，`Object.assign` 只搬自有属性。
+3. **改成 `export let db` 再重新赋值** —— 要赌所有 import 站点都读实时绑定，赌注太大。
+
+**最终解法**：让 `SqliteDatabase` 的**构造函数不碰数据库**（只建表对象数组），
+于是能在模块加载时**同步**决定用哪个后端 —— 之后什么都不用替换。
+异步的只有"连接 + 建表"，交给懒 driver 排队，并**串进同一条 ready 链**，
+保证建表 DDL 一定排在第一个业务查询之前（`void db.init()` 那种 fire-and-forget
+会让建表和查询成为两条独立链，谁先到不确定）。
+
+### 表结构只留一个来源
+
+SQL 的 DDL 是从 Dexie 的 `DB_STORES` **推**出来的，不手写第二份。
+手写就等于把表结构抄两遍，加一张表漏一处 → "桌面端某页数据不见了"而 Web 端正常。
+回归里有一条断言：**每张 Dexie 表、每个声明的索引都必须有对应 DDL**。
+
+同理，Rust 侧**不写 migration**（表结构已由前端单一来源建好），
+否则又变成两个数据源。
+
+### `sql:default` 只管读，写入要单独开权限
+
+`src-tauri/capabilities/default.json` 里两条权限**缺一不可**：
+
+| 权限 | 实际包含 |
+|---|---|
+| `sql:default` | `allow-close` + `allow-load` + `allow-select` —— **只读** |
+| `sql:allow-execute` | 写入（put / delete / modify / 建表 DDL）必须显式加 |
+
+名字里的 "default" 很容易让人以为已经够用。漏掉 `allow-execute` 的症状是
+**读得到、写不了**，而且 Web 端一切正常 —— 只有桌面端会炸。
+
+不要凭名字猜权限集，去生成出来的 schema 里看实际情况：
+
+```bash
+node -e "const j=require('./src-tauri/gen/schemas/desktop-schema.json');
+console.log(JSON.stringify(j).match(/sql:default[^}]*/)[0].slice(0,400))"
+```
+
