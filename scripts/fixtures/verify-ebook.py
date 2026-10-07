@@ -16,13 +16,24 @@ import xml.etree.ElementTree as ET
 XML_SUFFIXES = ('.xml', '.opf', '.xhtml', '.ncx', '.rels')
 
 
+def parse_xml(data, where):
+    """解析前先拒绝实体声明，防 XML 实体扩展（billion laughs）。
+
+    EPUB/DOCX 是外部构造的压缩包，XML 内容视作不可信；
+    `<!DOCTYPE html>` 这类无实体声明的正常 doctype 不拦。
+    """
+    if b'<!ENTITY' in data.upper():
+        raise ValueError(f'{where}: 含实体声明（<!ENTITY），拒绝解析')
+    return ET.fromstring(data)
+
+
 def zip_xml_errors(zf):
     """所有 XML 类条目必须良构 —— 等价于 epubcheck / Word 的解析路径。"""
     errors = []
     for name in zf.namelist():
         if name.endswith(XML_SUFFIXES):
             try:
-                ET.fromstring(zf.read(name))
+                parse_xml(zf.read(name), name)
             except Exception as exc:  # noqa: BLE001 - 要把解析错误原样报出来
                 errors.append(f'{name}: {exc}')
     return errors
@@ -61,7 +72,7 @@ def check_epub(path):
         # container.xml 指向 OPF；取不到就退化成按扩展名找
         opf_path = None
         try:
-            container = ET.fromstring(zf.read('META-INF/container.xml'))
+            container = parse_xml(zf.read('META-INF/container.xml'), 'META-INF/container.xml')
             for el in container.iter():
                 if local(el.tag) == 'rootfile' and el.get('full-path'):
                     opf_path = el.get('full-path')
@@ -74,7 +85,7 @@ def check_epub(path):
         manifest = {}
         spine_ids = []
         if opf_path:
-            opf = ET.fromstring(zf.read(opf_path))
+            opf = parse_xml(zf.read(opf_path), opf_path)
             base = opf_path.rsplit('/', 1)[0] + '/' if '/' in opf_path else ''
             for el in opf.iter():
                 tag = local(el.tag)

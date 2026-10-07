@@ -34,9 +34,23 @@ export const CHANGE_KIND_COLOR: Record<ChangeKind, "success" | "accent" | "warni
   fixed: "warning",
 };
 
-export const APP_VERSION = "0.14.2";
+export const APP_VERSION = "0.14.3";
 
 export const CHANGELOG: Release[] = [
+  {
+    version: "0.14.3",
+    date: "2026-10-07",
+    headline: "AI 助手改版：结果标签页切换 + 全程流式输出",
+    changes: [
+      {
+        kind: "improved",
+        items: [
+          "**AI 助手的生成结果改为标签页**：续写、对话、扩写……每条结果各占一个标签，点标签来回切换对照，不再全部挤在一页里翻；生成中的标签带呼吸点，失败的标红点，关掉当前标签会自动切到最新一条。",
+          "**所有动作都支持流式输出**：改写、扩写、润色、描写、对话现在都边生成边显示，不再干等转圈（以前只有单候选续写才流式）；多个候选时第一个候选先流式给你看。",
+        ],
+      },
+    ],
+  },
   {
     version: "0.14.2",
     date: "2026-10-06",

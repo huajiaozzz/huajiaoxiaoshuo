@@ -134,7 +134,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ results: get().results.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
   },
   removeResult(id) {
-    set({ results: get().results.filter((r) => r.id !== id) });
+    const rest = get().results.filter((r) => r.id !== id);
+    set({
+      results: rest,
+      // 删掉的是当前标签页时，切到最新的那一个（没有了就留空）
+      activeResultId: get().activeResultId === id ? rest[0]?.id : get().activeResultId,
+    });
   },
   setActiveResult(id) {
     set({ activeResultId: id });

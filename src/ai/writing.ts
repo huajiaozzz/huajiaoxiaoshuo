@@ -72,7 +72,8 @@ async function generate(
       system,
       user: userBody,
       signal: opts.signal,
-      onDelta: count === 1 ? opts.onDelta : undefined,
+      // 首个候选流式回显（多候选时其余的静默生成，避免多股文本交叉闪烁）
+      onDelta: i === 0 ? opts.onDelta : undefined,
       params: i > 0 ? { temperature: clampTemp(base + temps[i % temps.length]) } : undefined,
       context: {
         projectId: opts.projectId,

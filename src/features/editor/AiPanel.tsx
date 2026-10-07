@@ -67,8 +67,9 @@ export function AiPanel({ projectId, chapterId, onInsert, onSuggest, injectedIns
     }
   }, [injectedQuote]);
 
-  void activeResultId;
   const modelLabel = settings.activeModel ?? "未配置模型";
+  // 标签页只渲染当前激活的那一条；id 失配时回退到最新一条，不给空白
+  const activeResult = results.find((r) => r.id === activeResultId) ?? results[0];
 
   const runAction = async (key: ActionKey) => {
     if (!settings.activeProviderId || !settings.activeModel) {
@@ -121,15 +122,16 @@ export function AiPanel({ projectId, chapterId, onInsert, onSuggest, injectedIns
 
       let out;
       if (key === "continue") out = await continueWriting({ ...base, targetWords, onDelta });
-      else if (key === "rewrite") out = await rewriteSelection({ ...base, selection });
-      else if (key === "expand") out = await expandSelection({ ...base, selection });
-      else if (key === "polish") out = await polishSelection({ ...base, selection });
-      else if (key === "describe") out = await generateDescription({ ...base, subject: subject.trim() || instruction.trim() || "当前场景" });
+      else if (key === "rewrite") out = await rewriteSelection({ ...base, selection, onDelta });
+      else if (key === "expand") out = await expandSelection({ ...base, selection, onDelta });
+      else if (key === "polish") out = await polishSelection({ ...base, selection, onDelta });
+      else if (key === "describe") out = await generateDescription({ ...base, subject: subject.trim() || instruction.trim() || "当前场景", onDelta });
       else
         out = await generateDialogue({
           ...base,
           participants: participants.split(/[,，、\s]+/).filter(Boolean),
           situation: instruction.trim() || "当前情境",
+          onDelta,
         });
 
       const next = resultFromOutput(out, ACTIONS.find((a) => a.key === key)?.label ?? key, key);
@@ -269,30 +271,64 @@ export function AiPanel({ projectId, chapterId, onInsert, onSuggest, injectedIns
         </details>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-        {results.length === 0 && (
-          <div className="grid h-full place-items-center px-6 text-center">
-            <div>
-              <Sparkles className="mx-auto mb-3 size-6 opacity-20" />
-              <p className="text-xs leading-relaxed opacity-50">
-                选中正文后点「改写」，或不选中直接点「续写」。
-                <br />
-                生成结果会保留在这里，可以对照原文反复取用。
-              </p>
-            </div>
+      <div className="flex min-h-0 flex-1 flex-col">
+        {results.length > 0 && (
+          <div
+            role="tablist"
+            aria-label="生成结果"
+            className="scrollbar-none flex shrink-0 gap-1 overflow-x-auto border-b border-black/5 px-3 py-1.5 dark:border-white/5"
+          >
+            {results.map((r, i) => {
+              const isActive = (activeResult?.id ?? results[0]?.id) === r.id;
+              // 同名动作生成多次时按时间编号（数组新的在前，越老的编号越小）
+              const dup = results.some((x, j) => j !== i && x.label === r.label);
+              const seq = results.slice(i + 1).filter((x) => x.label === r.label).length + 1;
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => useEditorStore.getState().setActiveResult(r.id)}
+                  className={
+                    "flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] transition " +
+                    (isActive
+                      ? "border-black/10 bg-black/[0.06] font-medium text-neutral-800 dark:border-white/15 dark:bg-white/[0.08] dark:text-neutral-200"
+                      : "border-transparent opacity-55 hover:bg-black/[0.04] hover:opacity-100 dark:hover:bg-white/[0.05]")
+                  }
+                >
+                  {r.status === "running" && (
+                    <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+                  )}
+                  {r.status === "error" && <span className="size-1.5 rounded-full bg-rose-500" />}
+                  {dup ? `${r.label} ${seq}` : r.label}
+                </button>
+              );
+            })}
           </div>
         )}
-        <div className="space-y-3">
-          {results.map((r) => (
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          {results.length === 0 && (
+            <div className="grid h-full place-items-center px-6 text-center">
+              <div>
+                <Sparkles className="mx-auto mb-3 size-6 opacity-20" />
+                <p className="text-xs leading-relaxed opacity-50">
+                  选中正文后点「改写」，或不选中直接点「续写」。
+                  <br />
+                  生成结果会保留在这里，可以对照原文反复取用。
+                </p>
+              </div>
+            </div>
+          )}
+          {activeResult && (
             <ResultCard
-              key={r.id}
-              result={r}
+              result={activeResult}
               projectId={projectId}
               onInsert={onInsert}
               onSuggest={onSuggest}
-              directions={directions[r.id]}
+              directions={directions[activeResult.id]}
             />
-          ))}
+          )}
         </div>
       </div>
 
