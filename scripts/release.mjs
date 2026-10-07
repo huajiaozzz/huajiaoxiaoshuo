@@ -11,6 +11,7 @@
  *   node scripts/release.mjs 0.10.0              # 发指定版本
  *   node scripts/release.mjs 0.10.0 --dry-run    # 只打印标题/正文/tag sha，不真的发
  *   node scripts/release.mjs 0.10.0 --no-latest  # 不标记 Latest（补历史版本用）
+ *   node scripts/release.mjs 0.15.0 --no-latest --no-sync   # 补发历史版本：**不动版本号**
  *   npm run release -- 0.9.0 --dry-run
  *
  * 前置：`gh auth status` 已登录；changelog 里有该版本条目。
@@ -72,21 +73,45 @@ function syncVersions(v) {
 }
 
 const dirty = git('status', '--porcelain');
+/*
+  `--no-sync`：补发**历史**版本时不要动版本号。
+
+  为什么需要它：发当前版本时，把 tauri.conf.json / Cargo.toml / package.json 同步到
+  目标版本是对的（桌面包文件名读它们）。但补发历史版本时，这三处应该保持在
+  **当前最新版本**上 —— 否则会把版本号往回写（0.16.0 → 0.15.0），
+  推出一个装配件名往下掉的提交，之后还得再改回来。
+  `--no-latest` 的注释早就写着"补历史版本用"，但补历史版本恰恰不该同步版本号，
+  两个场景原来共用一个开关，这里补上缺失的那一个。
+*/
+const noSync = flags.has('--no-sync');
 if (flags.has('--dry-run')) {
   // 只读预览：不检查工作区、不改文件、不提交
-  console.log(`版本号 ${target} 将同步到：tauri.conf.json / Cargo.toml / package.json`);
+  console.log(
+    noSync
+      ? `版本号：保持现状（--no-sync，补发历史版本）`
+      : `版本号 ${target} 将同步到：tauri.conf.json / Cargo.toml / package.json`,
+  );
   if (dirty) console.log('（注意：工作区有未提交改动，正式发版前需提交）');
 } else {
-  if (dirty) {
-    console.error('✗ 有未提交的改动，先提交再发版：\n' + dirty);
-    process.exit(1);
-  }
-  const changedFiles = syncVersions(target);
-  if (changedFiles.length) {
-    git('add', ...changedFiles);
-    git('commit', '-m', `chore(release): sync versions to v${target}`);
-    git('push');
-    console.log(`✓ 版本号已同步到 ${target} 并推送：${changedFiles.join(', ')}`);
+  if (noSync) {
+    // 不同步版本号，所以工作区必须是干净的（tag 要打在一笔确定的提交上）
+    if (dirty) {
+      console.error('✗ 有未提交的改动，先提交再发版：\n' + dirty);
+      process.exit(1);
+    }
+    console.log('（--no-sync：不改版本号）');
+  } else {
+    if (dirty) {
+      console.error('✗ 有未提交的改动，先提交再发版：\n' + dirty);
+      process.exit(1);
+    }
+    const changedFiles = syncVersions(target);
+    if (changedFiles.length) {
+      git('add', ...changedFiles);
+      git('commit', '-m', `chore(release): sync versions to v${target}`);
+      git('push');
+      console.log(`✓ 版本号已同步到 ${target} 并推送：${changedFiles.join(', ')}`);
+    }
   }
 }
 
