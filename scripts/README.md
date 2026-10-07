@@ -11,6 +11,7 @@
 | `mock-llm.mjs` | 本地假模型（OpenAI 兼容），无 API Key 也能跑通 AI 链路 | `npm run mock-llm` |
 | `verify-proxy.mjs` | 回归：代理探测、经代理真实请求、未启动时代理路径被跳过、本地模型永不走代理、设置页卡片 | 先起 `npm run proxy`，再 `node scripts/verify-proxy.mjs` |
 | `verify-memory.mjs` | 回归：记忆提取、去重与证据累积、注入 system prompt 与上下文、暂停/置顶、管理界面 | `node scripts/verify-memory.mjs` |
+| `verify-units.mjs` | 单元测试：**锚点定位**（四条定位路径 + 重复引文消歧 + 失效返回 null）、**修订建议应用**（从后往前、顺序无关、越界不崩）、**文风分析**（指标 / AI 味不误报 / 成语错别字 / 标点规范）、**记忆冲突判定**（同义不算冲突 / 两极才算 / 否定式翻转 / 相似度阈值实测值） | `npm run verify:units` |
 | `verify-conflict-ui.mjs` | 回归：多标签页冲突判定（纯函数）+ 审稿报告生成（Markdown 与 DOCX，含 OOXML 规范校验） | `node scripts/verify-conflict-ui.mjs` |
 | `verify-conflict-ui-e2e.mjs` | 回归：真开两个标签页写同一章 → 弹对比框 / 选「保留我的」后被放弃的一版进快照 / 尾部追加**不弹窗**自动合并；审稿台点导出真的下载 MD 与 DOCX 两份 | `node scripts/verify-conflict-ui-e2e.mjs` |
 

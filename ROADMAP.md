@@ -113,7 +113,12 @@ node scripts/shot.mjs <url> <png>  # 任意页面截图 + 控制台错误收集
 - [x] 自动保存的冲突处理 UI：`saveChapterContent` 的 `expectedRev` 乐观锁已真正接上（此前从未传入，等于无条件覆盖）；同处改写时弹并排 diff 让人选，内容一致或只是尾部追加时**自动合并不打扰**；被放弃的一版先存快照再落库（`src/features/editor/conflict.ts` + `ConflictDialog.tsx`）
 - [x] 批注导出为审稿报告：审稿台一键导出 **Markdown + DOCX 双份**，每条带章节号、锚定原文与上下文、状态与讨论；锚点已漂移的条目显式标注而不是伪造上下文（`src/features/data/review-report.ts`）
 - [x] 向量检索：上下文候选板块（人物/世界/伏笔/时间线）语义重排 + 历史段落 embedding 召回（默认关闭、按需惰性建索引、失败整体回退规则序/BM25，见 docs/compose/spec/semantic-recall.md）
-- [ ] 单元测试与 e2e 测试固化（JSON 修复、预算裁剪、diff、导出）—— 冲突判定与审稿报告已先行补上（`verify-conflict-ui` 49 项纯函数 + `verify-conflict-ui-e2e` 15 项浏览器），其余模块待补
+- [ ] 单元测试与 e2e 测试固化 —— **ROADMAP 此条原先写岔了**：它列的"JSON 修复 / 预算裁剪 / diff / 导出"其实早就被 `verify-utils` / `verify-zip` / `verify-ebook` 覆盖了。真正没测的是**用户直接感知、且调过阈值**的模块：
+  - [x] 锚点定位（`utils/anchor.ts`）—— 四条定位路径、重复引文消歧、失效必须返回 null 而非错位；建议应用从后往前、顺序无关、越界不崩（`verify-units`）
+  - [x] 文风分析（`utils/style-analyzer.ts`）—— 指标、AI 味**不误报**干净正文、成语错别字、标点规范（`verify-units`）
+  - [x] 记忆冲突判定（`core/memory-conflict.ts`）—— 同义不算冲突、同维度两极才算、否定式翻转、相似度阈值实测值（`verify-units`）
+  - [x] 冲突判定与审稿报告（`verify-conflict-ui` 49 项 + `verify-conflict-ui-e2e` 15 项）
+  - [ ] 其余 `src/utils`（format / bookSource / webFetch）与 `src/ai` 纯函数待补
 
 ### 桌面端（后期）
 - [ ] Tauri 2 打包；把 Dexie 存储换成 SQLite/文件系统适配层（`src/db/repo/*` 是唯一改动面）

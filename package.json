@@ -23,7 +23,8 @@
     "proxy": "node scripts/proxy.mjs",
     "verify:recall": "node scripts/verify-recall.mjs",
     "verify:conflict": "node scripts/verify-conflict-ui.mjs",
-    "verify:conflict:e2e": "node scripts/verify-conflict-ui-e2e.mjs"
+    "verify:conflict:e2e": "node scripts/verify-conflict-ui-e2e.mjs",
+    "verify:units": "node scripts/verify-units.mjs"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.20",
