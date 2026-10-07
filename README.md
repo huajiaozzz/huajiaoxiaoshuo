@@ -83,6 +83,8 @@ docs/          GOTCHAS（陷阱与约定）
 | `npm run verify` | 纯函数测试（28 项） |
 | `npm run verify:zip` | ZIP 写入器校验（对照 Python zipfile） |
 | `npm run verify:ebook` | EPUB / DOCX 格式校验 |
+| `npm run verify:conflict` | 冲突判定 + 审稿报告生成（纯函数 49 项 + DOCX 规范校验） |
+| `node scripts/run-all-verify.mjs` | 批量跑所有回归并汇总绿 / 跳过 / 红 |
 | `npm run mock-llm` | 启动本地假模型（无需 API Key） |
 | `npm run e2e:ai` | AI 链路端到端 |
 | `npm run proxy` | 本地转发（给不支持 CORS 的模型/记忆服务用） |

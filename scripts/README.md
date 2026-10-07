@@ -11,6 +11,8 @@
 | `mock-llm.mjs` | 本地假模型（OpenAI 兼容），无 API Key 也能跑通 AI 链路 | `npm run mock-llm` |
 | `verify-proxy.mjs` | 回归：代理探测、经代理真实请求、未启动时代理路径被跳过、本地模型永不走代理、设置页卡片 | 先起 `npm run proxy`，再 `node scripts/verify-proxy.mjs` |
 | `verify-memory.mjs` | 回归：记忆提取、去重与证据累积、注入 system prompt 与上下文、暂停/置顶、管理界面 | `node scripts/verify-memory.mjs` |
+| `verify-conflict-ui.mjs` | 回归：多标签页冲突判定（纯函数）+ 审稿报告生成（Markdown 与 DOCX，含 OOXML 规范校验） | `node scripts/verify-conflict-ui.mjs` |
+| `verify-conflict-ui-e2e.mjs` | 回归：真开两个标签页写同一章 → 弹对比框 / 选「保留我的」后被放弃的一版进快照 / 尾部追加**不弹窗**自动合并；审稿台点导出真的下载 MD 与 DOCX 两份 | `node scripts/verify-conflict-ui-e2e.mjs` |
 
 所有浏览器类脚本都用 `scripts/lib/browser.mjs` 的 `launchIsolated()`：**按脚本名隔离 profile 并在启动前清空**。
 早期两个脚本共用同一个 profile 目录，批量跑时会互相污染，出现"单跑全过、批量失败"的假象。

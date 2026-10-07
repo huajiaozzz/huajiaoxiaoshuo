@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button, Card, Chip } from "@/components/kit";
-import { ArrowRight, Check, CheckCheck, ExternalLink, GitBranch, MessageSquare, ScanEye, Sparkles, X } from "lucide-react";
+import { ArrowRight, Check, CheckCheck, ExternalLink, FileDown, GitBranch, MessageSquare, ScanEye, Sparkles, X } from "lucide-react";
 import type { ChapterComment, ID, ReviewSuggestion } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";
 import { EmptyHint, SectionTitle, StatCard } from "@/components/common/ui";
@@ -13,6 +13,9 @@ import {
   listProjectComments, listProjectReviewSuggestions, markReviewSuggestion, toggleCommentResolved,
 } from "@/db/repo/review";
 import { addComment } from "@/db/repo/review";
+import { getChapterContent } from "@/db/repo/outline";
+import { downloadBlob, downloadText, sanitizeFilename } from "@/features/data/exporters";
+import { exportReviewReport } from "@/features/data/review-report";
 
 import { verifyChecklist } from "@/ai/review";
 import { formatRelative } from "@/utils/format";
@@ -128,6 +131,57 @@ export function ReviewPage() {
     navigate(ROUTES.write(projectId, chapterId) + (params.toString() ? "?" + params.toString() : ""));
   };
 
+  /**
+   * 导出审稿报告（Markdown + DOCX）。
+   *
+   * 两种格式**一次生成**：两者必须来自同一次取数，否则用户在导出间隙又批注了一条，
+   * MD 与 DOCX 就会对不上（回归里专门断言两份的条目数一致）。
+   *
+   * 注意导的是**全部**批注与建议，不是当前筛选/搜索后的结果 ——
+   * 报告是给对方看的完整意见，搜索框只是本页的浏览工具。
+   */
+  const [exporting, setExporting] = useState(false);
+  const exportReport = async () => {
+    if (!project) return;
+    if (!comments.length && !suggestions.length) {
+      notify("warning", "还没有可导出的内容", "先在写作台里批注，或点「整本 AI 审稿」");
+      return;
+    }
+    setExporting(true);
+    try {
+      const ordered = [...chapters].sort((a, b) => a.order - b.order);
+      // 一次并发取齐所有章节正文：报告要用它给锚点重新定位上下文
+      const entries = await Promise.all(ordered.map((c) => getChapterContent(c.id)));
+      const chapterHtml: Record<ID, string> = {};
+      ordered.forEach((c, i) => {
+        chapterHtml[c.id] = entries[i]?.html ?? "<p></p>";
+      });
+
+      const built = await exportReviewReport({
+        project,
+        chapters: ordered,
+        comments,
+        suggestions,
+        chapterHtml,
+      });
+      const base = sanitizeFilename(project.title) + "-审稿报告";
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadText(built.markdown, base + "-" + stamp + ".md", "text/markdown;charset=utf-8");
+      downloadBlob(built.docx, base + "-" + stamp + ".docx");
+      notify(
+        "success",
+        "审稿报告已导出",
+        "已下载 Markdown 与 DOCX 两份，共 " +
+          (built.model.stats.totalComments + built.model.suggestions.length) + " 条",
+      );
+    } catch (e) {
+      console.error(e);
+      notify("danger", "导出失败", String(e));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <PageScaffold
       title="审稿台"
@@ -137,6 +191,16 @@ export function ReviewPage() {
           <Button size="sm" variant="outline" isPending={running} onPress={() => void runWholeBook()}>
             <Sparkles className="size-3.5" />
             整本 AI 审稿
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            isPending={exporting}
+            onPress={() => void exportReport()}
+            data-export-report=""
+          >
+            <FileDown className="size-3.5" />
+            导出审稿报告
           </Button>
           <Button size="sm" variant="ghost" onPress={() => navigate(ROUTES.write(projectId))}>
             <ExternalLink className="size-3.5" />

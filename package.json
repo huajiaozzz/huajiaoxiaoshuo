@@ -1,7 +1,7 @@
 {
   "name": "huajiao-writer",
   "private": true,
-  "version": "0.14.3",
+  "version": "0.15.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -21,7 +21,9 @@
     "e2e:ai": "node scripts/ai-e2e.mjs",
     "shot": "node scripts/shot.mjs",
     "proxy": "node scripts/proxy.mjs",
-    "verify:recall": "node scripts/verify-recall.mjs"
+    "verify:recall": "node scripts/verify-recall.mjs",
+    "verify:conflict": "node scripts/verify-conflict-ui.mjs",
+    "verify:conflict:e2e": "node scripts/verify-conflict-ui-e2e.mjs"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.20",

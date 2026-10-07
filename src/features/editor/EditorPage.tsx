@@ -36,6 +36,8 @@ import type { ChapterComment, ReviewSuggestion } from "@/core";
 import { locateAnchor, makeAnchor } from "@/utils/anchor";
 import { docToText as docToPlainText } from "@/utils/rich-text";
 import { SnapshotPanel } from "./SnapshotPanel";
+import { ConflictDialog } from "./ConflictDialog";
+import { assessConflict, type ConflictPair, type ResolveChoice } from "./conflict";
 import { ChapterSettings } from "./ChapterSettings";
 import { PomodoroTimer } from "./PomodoroTimer";
 import { AnimatePresence } from "motion/react";
@@ -177,6 +179,20 @@ export function EditorPage() {
    */
   const loadingRef = useRef(false);
   /**
+   * 编辑器里这份内容装载时的**数据库版本号**（chapterContents.rev）。
+   *
+   * 保存时作为 `expectedRev` 传下去，数据库据此判断"有没有人在这期间改过这一章"。
+   * 落库成功后必须同步更新（见 doSave），否则下一轮会拿旧 rev 反复判成冲突。
+   * 没有这一行就能解释清楚为什么"两个标签页同时写，后保存的默默覆盖先保存的"。
+   */
+  const loadedRevRef = useRef<number | undefined>(undefined);
+  /**
+   * 待处理的冲突（库里那版 vs 我这版）。
+   *
+   * 用 state 而不是 ref：它要驱动弹窗渲染。非 null 即弹窗打开。
+   */
+  const [conflict, setConflict] = useState<ConflictPair | null>(null);
+  /**
    * 编辑器里的内容被作者**真的改过**（不是装载、不是切章带来的）。
    *
    * 只有它为 true 时才值得往数据库写：
@@ -211,7 +227,7 @@ export function EditorPage() {
    * 旧章的未保存编辑就再也写不回去了。
    */
   const loadChapterInto = useCallback(
-    async (target: Chapter, html: string, text: string) => {
+    async (target: Chapter, html: string, text: string, rev?: number) => {
       /*
         先冲刷上一章：此刻 contentRef 里还是上一章的内容与它的 id，
         两者配套，直接写回它自己的章节 —— 不会写错对象。
@@ -237,6 +253,8 @@ export function EditorPage() {
       */
       contentRef.current = { chapterId: target.id, html };
       lastSavedRef.current = { chapterId: target.id, html };
+      // 记下装载时的版本号：保存时据此做乐观并发判定（见 loadedRevRef 注释）
+      loadedRevRef.current = rev;
       setDraftWords(target.wordCount || countWords(text));
       setLoadedFor({ id: target.id, html });
       /*
@@ -272,7 +290,7 @@ export function EditorPage() {
       而编辑器的初始空文档可能在它之前就触发了 onChange。
     */
     loadedReadyRef.current = chapter.id;
-    void loadChapterInto(chapter, content.html ?? "<p></p>", content.text ?? "");
+    void loadChapterInto(chapter, content.html ?? "<p></p>", content.text ?? "", content.rev);
   }, [chapter, content, loadedFor, loadChapterInto]);
 
   // 设置里开了「默认进入心流模式」时，进入写作页自动隐藏面板（只生效一次）
@@ -348,7 +366,59 @@ export function EditorPage() {
         return;
       }
       state.setSaving(true);
-      const res = await saveChapterContent(cid, html);
+      /*
+        **乐观并发**：告诉库里"我看到的是第 N 版"，由数据库判定有没有被别人改过。
+
+        以前这里不传 expectedRev，等于无条件覆盖 —— 同一章节在另一个标签页被改过时，
+        本页的自动保存会静默盖掉它，作者毫无察觉。这正是多标签页丢字的根因。
+      */
+      const res = await saveChapterContent(cid, html, { expectedRev: loadedRevRef.current });
+      if (!res.ok) {
+        /*
+          库里已经是别人写的版本了。此刻**绝不能**把 lastSavedRef 标记为已保存 ——
+          否则下一次自动保存会拿这份"已被拒绝的内容"当基准继续写，把冲突掩盖掉。
+        */
+        const fresh = await getChapterContent(cid);
+        const dbText = fresh?.text ?? "";
+        const dbHtml = fresh?.html ?? "";
+        const pair: ConflictPair = {
+          dbHtml,
+          dbText,
+          dbRev: res.rev,
+          mineHtml: html,
+          mineText: docToPlainText(html),
+          mineRev: loadedRevRef.current ?? 0,
+        };
+
+        /*
+          大部分"冲突"其实不需要打扰作者：内容一样（只是版本号漂移），
+          或一版是在另一版基础上往后追加的。这两种直接采纳内容更全的那一份。
+          弹窗只在**同处改写**时出现 —— 那才是必须由人决定的事。
+        */
+        const auto = assessConflict(pair);
+        if (auto.autoResolvable) {
+          const merged = auto.severity === 'benign' ? dbText : pair.mineText + '\n\n' + dbText;
+          const mergedHtml = textToDoc(merged);
+          const retry = await saveChapterContent(cid, mergedHtml);
+          loadedRevRef.current = retry.rev;
+          lastSavedRef.current = { chapterId: cid, html: mergedHtml };
+          contentRef.current = { chapterId: cid, html: mergedHtml };
+          state.markSaved(retry.words);
+          state.setSaving(false);
+          if (auto.severity === 'append-only' && retry.words > res.words) {
+            setLoadedFor({ id: cid, html: mergedHtml });
+            notify("info", "已自动合并两处改动", "另一个标签页在这章末尾追加了内容，已接在你写的内容之后");
+          }
+          return;
+        }
+
+        state.setSaving(false);
+        state.setDirty(true);
+        setConflict(pair);
+        return;
+      }
+      // 落库成功才更新基准 rev，否则下一轮又会把同一个冲突当成"没冲突"
+      loadedRevRef.current = res.rev;
       lastSavedRef.current = { chapterId: cid, html };
       state.markSaved(res.words);
       if (reason === "manual") notify("success", "已保存", formatWords(res.words));
@@ -371,7 +441,7 @@ export function EditorPage() {
   }, [handle]);
 
   /**
-   * 绕过编辑器直接写库之后（接受修订、恢复快照），原子地同步保存侧状态。
+   * 绕过编辑器直接写库之后（接受修订、恢复快照、冲突合并），原子地同步保存侧状态。
    *
    * 少做任何一步都会被随后的自动保存/切章冲刷用**旧 contentRef** 写回去，
    * 刚应用的修订会被静默撤销。
@@ -384,12 +454,75 @@ export function EditorPage() {
     contentRef.current = { chapterId, html };
     lastSavedRef.current = { chapterId, html };
     loadedReadyRef.current = chapterId;
+    /*
+      这次是绕过编辑器直接写库的，rev 已经变了。
+      不推进基准的话，下一次自动保存会拿旧 rev 去比对，把自己刚写的当成"别人改的"，
+      于是刚接受的修订建议在几秒后又弹出一个假的冲突框。
+      这里多读一次库里当前的 rev 来对齐。
+    */
+    void getChapterContent(chapterId).then((c) => {
+      if (c) loadedRevRef.current = c.rev;
+    });
     setDraftHtml(html);
     setDraftWords(words);
     const state = useEditorStore.getState();
     state.markSaved(words);
     state.setDirty(false);
   }, []);
+
+  /**
+   * 作者在冲突弹窗里做了选择：把两份正文按选择合并后落库。
+   *
+   * ## 顺序很重要：先快照，后写入
+   *
+   * 无论选哪一版，**被放弃的那一版都要先存成快照**。
+   * 反过来做（先写后存）会有一个窗口：新内容已经落库、快照还没写，
+   * 此时若快照写入失败，那一版就真的没了 —— 而用户刚明确表示"另一版要留着"。
+   *
+   * 快照失败也**不阻断**合并：那只是"多一份保险"没拿到，
+   * 不该因为保险没买到就拒绝作者已经做出的决定。
+   */
+  const resolveSavedConflict = useCallback(
+    async (choice: ResolveChoice, text: string) => {
+      const pair = conflict;
+      setConflict(null);
+      if (!pair) return;
+      const cid = contentRef.current.chapterId;
+      if (!cid) return;
+
+      /*
+        被放弃的那一版先存成快照。
+        注意 createSnapshot 抓的是**库里当前**那份内容，所以必须先把它改成"被放弃的那版"，
+        快照才有意义 —— 否则"保留我的"时快照存下来的还是库里的（等于没存到丢失的那版）。
+      */
+      try {
+        const loser = choice === "keep-mine" ? pair.dbText : pair.mineText;
+        await saveChapterContent(cid, textToDoc(loser), { touchStatus: false });
+        await createSnapshot(cid, "冲突解决前（另一版本）", "auto");
+      } catch (e) {
+        // 快照只是"多一份保险"：拿不到也不该拒绝作者已经做出的决定
+        console.warn("冲突快照失败（已继续合并）", e);
+      }
+
+      const html = textToDoc(text);
+      const res = await saveChapterContent(cid, html);
+      loadedRevRef.current = res.rev;
+      /*
+        合并后的正文要真正显示到编辑器里。
+        走 commitExternalContent 而不是直接改编辑器 —— 它会同步 contentRef/lastSavedRef，
+        随后的自动保存与切章冲刷才不会拿旧内容把这次合并覆盖回去。
+        编辑器本体由 ownedHtml（loadedFor.html）驱动重载。
+      */
+      commitExternalContent(cid, html, res.words);
+      setLoadedFor({ id: cid, html });
+      notify(
+        "success",
+        choice === "take-db" ? "已改用库里的版本" : choice === "save-both" ? "已合并两版" : "已保留你的版本",
+        "被放弃的那一版已存进快照",
+      );
+    },
+    [conflict, notify, commitExternalContent],
+  );
 
   const onEditorChange = useCallback(
     (html: string, words: number, ownerChapterId: string) => {
@@ -970,6 +1103,23 @@ export function EditorPage() {
           projectId={projectId}
           onClose={() => setSettingsFor(null)}
           onSaved={() => notify("success", "章节属性已保存")}
+        />
+      )}
+
+      {/*
+        冲突弹窗。`conflict` 里只放**真正需要人工决定**的那些 ——
+        内容一致或只是尾部追加的情况在 doSave 里已经自动处理掉了，
+        不会走到这里（见 assessConflict 的 autoResolvable）。
+      */}
+      {conflict && chapter && (
+        <ConflictDialog
+          pair={conflict}
+          chapterTitle={chapter.title}
+          onResolve={(choice, text) => void resolveSavedConflict(choice, text)}
+          onClose={() => {
+            setConflict(null);
+            notify("warning", "这次没有保存", "正文仍在编辑器里，下次自动保存会再问一次");
+          }}
         />
       )}
 
