@@ -43,3 +43,6 @@ src-tauri/gen/
 
 # 视频录制工作目录（录屏与转码产物，不进仓库）
 recordings/
+
+# Mimosa 本地 hook 状态与报告（机器本地产物，不进仓库）
+.mimosa/
