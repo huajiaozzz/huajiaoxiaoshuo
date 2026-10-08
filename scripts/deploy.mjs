@@ -129,13 +129,26 @@ if (WITH_RELEASE) {
 /* ---------- 3. 服务器：拉取 + 构建 ---------- */
 console.log('▶ 3/4 服务器拉取构建');
 if (DRY) {
-  console.log(`  （dry-run）会在 ${cfg.user}@${cfg.host}:${cfg.path} 执行 git pull + npm run build`);
+  console.log(`  （dry-run）会在 ${cfg.user}@${cfg.host}:${cfg.path} 执行 git pull + npm install + npm run build`);
 } else {
   const remote = [
     `cd ${cfg.path}`,
     // npm install 会改写 lock，pull 前先还原，免得每次都要手工处理
     'git checkout -- package-lock.json 2>/dev/null || true',
     'git pull --ff-only',
+    /*
+      必须先装依赖再构建。
+
+      这一条曾经漏掉，症状是：**只在新增依赖的那次发版才炸**，而且报的是
+      "Cannot find module '……'"，看着像代码问题，其实服务器上那个包根本没装。
+      v0.16.0 加 @tauri-apps/plugin-sql 时就是这么挂的。
+      更阴的是下面那行"还原 package-lock.json"——它暗示"这里跑过 npm install"，
+      于是漏掉这一步时，注释反而让人以为没问题。
+
+      用 npm install（而不是 npm ci）：它按 lock 增量对齐，不重装整个 node_modules，
+      部署快得多；代价是可能改写 package-lock.json —— 那正是上面那行还原存在的原因。
+    */
+    'npm install --no-audit --no-fund',
     'npm run build',
   ].join(' && ');
   if (!ssh(remote).ok) {
