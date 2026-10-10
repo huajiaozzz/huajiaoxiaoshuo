@@ -1,22 +1,22 @@
 # 花椒写作平台 · 开发路线与状态
 
 > 本地优先的 AI 长篇小说创作工作台。
-> 前端 React 19 · TypeScript · HeroUI **v3.2.6** · Tailwind CSS **v4** · Vite 8 · Dexie(IndexedDB)。
+> 前端 React 19 · TypeScript · Animate UI + 自研 `src/components/kit` · Tailwind CSS **v4** · Vite 8 · Dexie(IndexedDB)。
 > 所有数据存在浏览器本地，桌面端（Tauri 2）在网页端完善后再打包 —— 业务逻辑全部在 `src/core`、`src/db`、`src/ai`、`src/utils`，不依赖浏览器专有 API，可直接复用。
 
 ## 一、已完成（网页端第一阶段）
 
 ### 工程底座
-- [x] Vite 8 + React 19.2 + TS + Tailwind 4.3 + HeroUI 3.2.6（v3 无需 Provider，`@import "@heroui/styles"`）
+- [x] Vite 8 + React 19.2 + TS + Tailwind 4.3 + Animate UI（源码在 `src/components/animate-ui`）+ 自研 kit（`src/components/kit`，API 沿用旧约定）；HeroUI 已于 0.10.0 全部移除
 - [x] 品牌主题（`--accent` 紫）、深色模式、中文排版样式、心流模式样式
-- [x] 149 个源文件 / 约 3.2 万行，`tsc -b --force` 与 `vite build` 均零错误
+- [x] 267 个源文件（`*.ts`/`*.tsx`）/ 约 6.2 万行，`tsc -b --force` 与 `vite build` 均零错误
 
 ### 领域模型与本地数据层
 - [x] 完整实体模型：Project / Arc / Chapter / Beat / ChapterContent / Snapshot / Character / Relationship /
       WorldEntry / WorldRule / Entity / EntityMention / Faction / PlotThread / TimelineEvent / Glossary /
       ContinuityRule / Issue / ChapterMetric / StyleFingerprint / WritingGoal / WritingSession / Pomodoro /
       AiSession / AiSuggestion / AiGeneration / ProviderConfig / TaskRouting / PromptTemplate / GenesisRun
-- [x] Dexie v1，30 张表，按 projectId 隔离，级联删除、项目复制、统计重算
+- [x] Dexie v8，42 张表，按 projectId 隔离，级联删除、项目复制、统计重算
 - [x] 打包导出/恢复：全量 JSON、gzip 压缩、合并/覆盖恢复、纯文本导入自动分章、故事圣经导出
 
 ### AI 引擎（`src/ai/`）
@@ -70,7 +70,7 @@
 
 ```bash
 npm run dev                      # 开发服务器（默认 5178）
-npx tsc -b --force               # 类型检查（含 30 张表与全部 AI 模块）
+npx tsc -b --force               # 类型检查（含 42 张表与全部 AI 模块）
 npx vite build                   # 生产构建
 
 node scripts/mock-llm.mjs 8765   # 本地假模型（OpenAI 兼容，无需 API Key）
@@ -131,5 +131,5 @@ node scripts/shot.mjs <url> <png>  # 任意页面截图 + 控制台错误收集
 见 [docs/GOTCHAS.md](docs/GOTCHAS.md)。要点：
 - 自定义 hook 返回**对象**而非元组（避免"数错解构位置"）。
 - Dexie：`modify` 回调不能返回值；`transaction` 必须传表数组。
-- HeroUI v3：没有 `asChild` / `onClick`，用 `onPress` / `isDisabled` / `isPending`。
+- 组件层（Animate UI 原语 + 自研 kit，沿用旧 API）：没有 `asChild`，跳转用 `onPress` + `useNavigate()`；禁用 `isDisabled`、加载 `isPending`。
 - 中文正文换行即分段，缩进交给 CSS，正文里不写全角空格。
